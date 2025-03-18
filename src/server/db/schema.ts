@@ -9,7 +9,6 @@ import {
   timestamp,
   varchar,
 } from "drizzle-orm/pg-core";
-import { drizzle } from "drizzle-orm/neon-http";
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 
 /**

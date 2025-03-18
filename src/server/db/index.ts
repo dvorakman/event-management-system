@@ -5,9 +5,6 @@ import postgres from 'postgres';
 import * as schema from "./schema";
 import { env } from "~/env";
 
-// Import the query builder
-import { pgTable } from 'drizzle-orm/pg-core';
-
 /**
  * Cache the database connection in development. This avoids creating a new connection on every HMR
  * update.
