@@ -7,7 +7,8 @@ export const env = createEnv({
    * isn't built with invalid env vars.
    */
   server: {
-    DATABASE_URL: z.string().url(),
+    DATABASE_URL: z.string().url().optional(),
+    NEON_DATABASE_URL: z.string().url().optional(),
     NODE_ENV: z
       .enum(["development", "test", "production"])
       .default("development"),
@@ -28,6 +29,7 @@ export const env = createEnv({
    */
   runtimeEnv: {
     DATABASE_URL: process.env.DATABASE_URL,
+    NEON_DATABASE_URL: process.env.NEON_DATABASE_URL,
     NODE_ENV: process.env.NODE_ENV,
     // NEXT_PUBLIC_CLIENTVAR: process.env.NEXT_PUBLIC_CLIENTVAR,
   },
@@ -41,4 +43,21 @@ export const env = createEnv({
    * `SOME_VAR=''` will throw an error.
    */
   emptyStringAsUndefined: true,
+
+  /**
+   * Validate that at least one database URL is provided
+   */
+  onValidationError: (error) => {
+    const missingDatabaseUrl = error.issues.some(
+      (issue) => issue.path.includes('DATABASE_URL') || issue.path.includes('NEON_DATABASE_URL')
+    );
+
+    if (missingDatabaseUrl) {
+      throw new Error(
+        'Either DATABASE_URL (for local development) or NEON_DATABASE_URL (for production) must be provided'
+      );
+    }
+
+    throw error;
+  },
 });
