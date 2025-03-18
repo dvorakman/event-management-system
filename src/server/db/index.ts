@@ -2,9 +2,11 @@ import { neon } from '@neondatabase/serverless';
 import { drizzle } from 'drizzle-orm/neon-http';
 import { drizzle as drizzleNode } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
-
-import { env } from "~/env";
 import * as schema from "./schema";
+import { env } from "~/env";
+
+// Import the query builder
+import { pgTable } from 'drizzle-orm/pg-core';
 
 /**
  * Cache the database connection in development. This avoids creating a new connection on every HMR

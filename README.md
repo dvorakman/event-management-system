@@ -89,14 +89,194 @@ To use the Neon Serverless PostgreSQL database:
 
 The application will automatically detect the presence of `NEON_DATABASE_URL` and use the Neon database instead of the local PostgreSQL database. This configuration works for both the application and tools like Drizzle Studio.
 
-## Database Scripts
+## Database Management
 
-- `bun run db:generate` - Generate Drizzle migrations
-- `bun run db:migrate` - Run migrations
-- `bun run db:push` - Push schema changes to the database
-- `bun run db:studio` - Open Drizzle Studio to explore your database (works with both local and Neon databases)
-- `bun run db:local:start` - Start local PostgreSQL using Docker (Unix/Mac)
-- `bun run db:local:start:win` - Start local PostgreSQL using Docker (Windows)
+This project uses Drizzle ORM with a migration-based workflow for database schema management. This approach ensures:
+- Consistent database structure across all environments
+- Version-controlled schema changes
+- Safe collaboration between team members
+- Reliable deployment process
+
+### Database Environments
+
+The project supports two database environments:
+
+1. **Local Development** (`DATABASE_URL`)
+   - Uses Docker-based PostgreSQL
+   - Ideal for rapid development and testing
+   - Start with `bun run db:start`
+   - Connection details:
+     ```
+     Host: localhost
+     Port: 5432
+     User: postgres
+     Password: postgres
+     Database: postgres
+     ```
+
+2. **Production** (`NEON_DATABASE_URL`)
+   - Uses Neon serverless PostgreSQL
+   - Automatically used when `NEON_DATABASE_URL` is present
+   - Set up at [neon.tech](https://neon.tech)
+
+### Schema Management Workflow
+
+#### For Individual Developers
+
+1. **Making Schema Changes**
+   ```bash
+   # 1. Start your local database
+   bun run db:start
+   
+   # 2. Edit schema in src/server/db/schema.ts
+   # Example: Add a new column, create a table, etc.
+   
+   # 3. Generate a migration
+   bun run db:generate
+   
+   # 4. Review the generated migration in drizzle/migrations/
+   # Make sure it does what you expect!
+   
+   # 5. Apply the migration
+   bun run db:migrate
+   
+   # 6. Test your changes
+   # Use Drizzle Studio to verify:
+   bun run db:studio
+   ```
+
+2. **Committing Changes**
+   ```bash
+   # Always commit both the schema changes and migration files:
+   git add src/server/db/schema.ts
+   git add drizzle/migrations/*
+   git commit -m "feat(db): add [your change description]"
+   ```
+
+#### Team Collaboration
+
+1. **Before Starting Work**
+   ```bash
+   # 1. Pull latest changes
+   git pull origin main
+   
+   # 2. Start local database
+   bun run db:start
+   
+   # 3. Apply any new migrations
+   bun run db:migrate
+   ```
+
+2. **Handling Conflicts**
+   - If multiple developers modify the schema:
+     ```bash
+     # 1. Stash your changes if needed
+     git stash
+     
+     # 2. Pull latest changes
+     git pull origin main
+     
+     # 3. Apply upstream migrations
+     bun run db:migrate
+     
+     # 4. Reapply your changes
+     git stash pop  # if you stashed
+     
+     # 5. Generate new migration
+     bun run db:generate
+     ```
+   - Always review migrations before pushing
+   - Coordinate major schema changes with team
+
+3. **Best Practices**
+   - One schema change per commit
+   - Clear commit messages describing changes
+   - Test migrations both up and down
+   - Document breaking changes
+   - Use meaningful migration names
+
+### Migration Management
+
+1. **Understanding Migration Files**
+   - Located in `drizzle/migrations/`
+   - Named with timestamps (e.g., `0000_initial.sql`)
+   - Contains both `up` and `down` migrations
+   - Automatically tracked in database
+
+2. **Common Migration Tasks**
+   ```bash
+   # Generate migration after schema change
+   bun run db:generate
+   
+   # Apply pending migrations
+   bun run db:migrate
+   
+   # View database state
+   bun run db:studio
+   ```
+
+3. **Troubleshooting Migrations**
+   - If migrations fail:
+     1. Check database connection
+     2. Review migration files
+     3. Check for conflicts with existing data
+     4. Verify schema.ts changes
+   
+   - Common issues:
+     - "Relation already exists": Migration already applied
+     - "Relation doesn't exist": Missing migration
+     - "Column cannot be null": Data consistency issue
+
+### Production Deployments
+
+1. **Vercel Deployment**
+   - Migrations run automatically during build
+   - Ensure `NEON_DATABASE_URL` is set in Vercel
+   - Build command includes migrations:
+     ```bash
+     bun run db:migrate && next build
+     ```
+
+2. **Database Safety**
+   - Always backup before major migrations
+   - Test migrations on staging if possible
+   - Use transactions for data migrations
+   - Consider downtime for large migrations
+
+3. **Monitoring & Maintenance**
+   - Check migration status in production
+   - Monitor database performance
+   - Keep migrations under version control
+   - Regular backups (automated with Neon)
+
+### Development Tools
+
+1. **Drizzle Studio**
+   ```bash
+   bun run db:studio
+   ```
+   - View and edit data
+   - Explore schema
+   - Debug issues
+   - Works with both local and Neon databases
+
+2. **Docker Database**
+   ```bash
+   # Start database
+   bun run db:start
+   
+   # View logs
+   docker logs event-management-postgres
+   
+   # Stop database
+   docker stop event-management-postgres
+   ```
+
+3. **Schema Validation**
+   - TypeScript integration
+   - Runtime type checking
+   - Automatic query validation
+   - Built-in security features
 
 ## Deployment on Vercel
 

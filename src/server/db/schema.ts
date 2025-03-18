@@ -9,6 +9,8 @@ import {
   timestamp,
   varchar,
 } from "drizzle-orm/pg-core";
+import { drizzle } from "drizzle-orm/neon-http";
+import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 
 /**
  * This is an example of how to use the multi-project schema feature of Drizzle ORM. Use the same
@@ -34,3 +36,14 @@ export const posts = createTable(
     nameIndex: index("name_idx").on(example.name),
   })
 );
+
+// Schema for inserting a post - can be used to validate API requests
+export const insertPostSchema = createInsertSchema(posts);
+
+// Schema for selecting a post - can be used to validate API responses
+export const selectPostSchema = createSelectSchema(posts);
+
+// Export the query builder
+export const queries = {
+  posts,
+} as const;

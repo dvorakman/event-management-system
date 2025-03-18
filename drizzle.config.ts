@@ -12,9 +12,12 @@ if (!dbUrl) {
 
 export default {
   schema: "./src/server/db/schema.ts",
-  dialect: "postgresql",
+  out: "./drizzle/migrations",
+  driver: "pg",
   dbCredentials: {
     url: dbUrl,
   },
   tablesFilter: ["event-management-system_*"],
+  // Specify whether to strict check migration files
+  strict: true,
 } satisfies Config;
