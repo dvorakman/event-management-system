@@ -8,5 +8,5 @@ export default {
   dbCredentials: {
     url: env.DATABASE_URL,
   },
-  tablesFilter: ["csit314_*"],
+  tablesFilter: ["event-management-system_*"],
 } satisfies Config;
