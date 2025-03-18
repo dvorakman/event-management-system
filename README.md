@@ -1,29 +1,119 @@
-# Create T3 App
+# Event Management System
 
-This is a [T3 Stack](https://create.t3.gg/) project bootstrapped with `create-t3-app`.
+This is a [T3 Stack](https://create.t3.gg/) project built with Next.js, tRPC, Drizzle ORM, and PostgreSQL.
 
-## What's next? How do I make an app with this?
+## Database Configuration
 
-We try to keep this project as simple as possible, so you can start with just the scaffolding we set up for you, and add additional things later when they become necessary.
+This project supports both local PostgreSQL for development and Neon serverless PostgreSQL for production. The database connection is configured to automatically use:
 
-If you are not familiar with the different technologies used in this project, please refer to the respective docs. If you still are in the wind, please join our [Discord](https://t3.gg/discord) and ask for help.
+1. **Neon Serverless PostgreSQL**: When `NEON_DATABASE_URL` environment variable is present
+2. **Local PostgreSQL**: When `NEON_DATABASE_URL` is not present (default for development)
 
-- [Next.js](https://nextjs.org)
-- [NextAuth.js](https://next-auth.js.org)
-- [Prisma](https://prisma.io)
-- [Drizzle](https://orm.drizzle.team)
-- [Tailwind CSS](https://tailwindcss.com)
-- [tRPC](https://trpc.io)
+### Setting Up Local Development
+
+1. **Clone the repository**
+   ```
+   git clone https://github.com/yourusername/event-management-system.git
+   cd event-management-system
+   ```
+
+2. **Install dependencies**
+   ```
+   bun install
+   ```
+
+3. **Set up environment variables**
+   ```
+   cp .env.example .env
+   ```
+   By default, the `.env` file is configured to use a local PostgreSQL database to reduce Neon database usage during development.
+
+4. **Start the local PostgreSQL database**
+   
+   Prerequisites:
+   - [Docker](https://www.docker.com/get-started/) must be installed and running
+   
+   Start the database:
+   ```bash
+   bun run db:start
+   ```
+   
+   The script will:
+   - Check if Docker is running
+   - Start an existing container if it exists
+   - Create a new container if needed
+   
+   The database will be available at:
+   - Host: `localhost`
+   - Port: `5432`
+   - Username: `postgres`
+   - Password: `postgres`
+   - Database: `postgres`
+
+   To verify the database is running:
+   ```bash
+   docker ps
+   ```
+   You should see a container named `event-management-postgres` in the list.
+
+   To stop the database:
+   ```bash
+   docker stop event-management-postgres
+   ```
+
+   To view database logs:
+   ```bash
+   docker logs event-management-postgres
+   ```
+
+   Troubleshooting:
+   - If you see "port already in use" errors, check if another PostgreSQL instance is running
+   - If Docker fails to start, ensure Docker Desktop is running
+   - If connection fails, try stopping any existing containers and starting again
+
+5. **Run the development server**
+   ```
+   bun run dev
+   ```
+
+## Using with Neon Database
+
+To use the Neon Serverless PostgreSQL database:
+
+1. Create a Neon account and project at [neon.tech](https://neon.tech)
+2. Get your connection string from the Neon dashboard
+3. Uncomment and update the `NEON_DATABASE_URL` in your `.env` file:
+   ```
+   NEON_DATABASE_URL="postgres://username:password@endpoint.neon.tech/dbname?sslmode=require"
+   ```
+
+The application will automatically detect the presence of `NEON_DATABASE_URL` and use the Neon database instead of the local PostgreSQL database. This configuration works for both the application and tools like Drizzle Studio.
+
+## Database Scripts
+
+- `bun run db:generate` - Generate Drizzle migrations
+- `bun run db:migrate` - Run migrations
+- `bun run db:push` - Push schema changes to the database
+- `bun run db:studio` - Open Drizzle Studio to explore your database (works with both local and Neon databases)
+- `bun run db:local:start` - Start local PostgreSQL using Docker (Unix/Mac)
+- `bun run db:local:start:win` - Start local PostgreSQL using Docker (Windows)
+
+## Deployment on Vercel
+
+This project is configured for easy deployment on Vercel:
+
+1. Connect your GitHub repository to Vercel
+2. Configure the environment variables:
+   - `NEON_DATABASE_URL`: Your Neon database connection string
+   - `DATABASE_URL`: Same as your `NEON_DATABASE_URL` for production deployments
+   - Add any other environment variables needed (Clerk keys, etc.)
 
 ## Learn More
 
-To learn more about the [T3 Stack](https://create.t3.gg/), take a look at the following resources:
+To learn more about the tech stack:
 
-- [Documentation](https://create.t3.gg/)
-- [Learn the T3 Stack](https://create.t3.gg/en/faq#what-learning-resources-are-currently-available) — Check out these awesome tutorials
-
-You can check out the [create-t3-app GitHub repository](https://github.com/t3-oss/create-t3-app) — your feedback and contributions are welcome!
-
-## How do I deploy this?
-
-Follow our deployment guides for [Vercel](https://create.t3.gg/en/deployment/vercel), [Netlify](https://create.t3.gg/en/deployment/netlify) and [Docker](https://create.t3.gg/en/deployment/docker) for more information.
+- [Next.js](https://nextjs.org)
+- [Drizzle ORM](https://orm.drizzle.team)
+- [tRPC](https://trpc.io)
+- [Neon Serverless PostgreSQL](https://neon.tech)
+- [T3 Stack](https://create.t3.gg/)
