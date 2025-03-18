@@ -1,23 +1,23 @@
-import { type Config } from "drizzle-kit";
+import * as dotenv from "dotenv";
+dotenv.config();
 
-import { env } from "~/env";
+// Get database URL from environment variables
+const databaseUrl = process.env.NEON_DATABASE_URL ?? process.env.DATABASE_URL;
 
-// Ensure we have a database URL
-const dbUrl = env.NEON_DATABASE_URL ?? env.DATABASE_URL;
-if (!dbUrl) {
+if (!databaseUrl) {
   throw new Error(
     "No database URL provided. Set either NEON_DATABASE_URL (for production) or DATABASE_URL (for local development)"
   );
 }
 
+/** @type {import("drizzle-kit").Config} */
 export default {
   schema: "./src/server/db/schema.ts",
   out: "./drizzle/migrations",
-  driver: "pg",
+  dialect: "postgresql",
   dbCredentials: {
-    url: dbUrl,
+    url: databaseUrl,
   },
   tablesFilter: ["event-management-system_*"],
-  // Specify whether to strict check migration files
   strict: true,
-} satisfies Config;
+}; 

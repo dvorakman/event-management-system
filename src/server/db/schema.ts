@@ -36,7 +36,6 @@ export const posts = createTable(
     nameIndex: index("name_idx").on(example.name),
   })
 );
-
 // Schema for inserting a post - can be used to validate API requests
 export const insertPostSchema = createInsertSchema(posts);
 
@@ -47,3 +46,4 @@ export const selectPostSchema = createSelectSchema(posts);
 export const queries = {
   posts,
 } as const;
+
