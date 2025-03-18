@@ -25,13 +25,17 @@ if (!globalForDb.db) {
     const conn = neon(env.NEON_DATABASE_URL);
     globalForDb.conn = conn;
     globalForDb.db = drizzle(conn, { schema });
-  } else {
+  } else if (env.DATABASE_URL) {
     // Connect to PostgreSQL database specified in DATABASE_URL
     // This will be the local database during development
     console.log("Using PostgreSQL database from DATABASE_URL");
     const conn = postgres(env.DATABASE_URL);
     globalForDb.conn = conn;
     globalForDb.db = drizzleNode(conn, { schema });
+  } else {
+    throw new Error(
+      "No database connection URL provided. Set either NEON_DATABASE_URL (for production) or DATABASE_URL (for local development)"
+    );
   }
 }
 
