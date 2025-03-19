@@ -2,11 +2,11 @@ import * as dotenv from "dotenv";
 dotenv.config();
 
 // Get database URL from environment variables
-const databaseUrl = process.env.NEON_DATABASE_URL ?? process.env.DATABASE_URL;
+const databaseUrl = process.env.DATABASE_URL;
 
 if (!databaseUrl) {
   throw new Error(
-    "No database URL provided. Set either NEON_DATABASE_URL (for production) or DATABASE_URL (for local development)"
+    "No database URL provided. Set DATABASE_URL in your .env file.",
   );
 }
 
@@ -14,10 +14,10 @@ if (!databaseUrl) {
 export default {
   schema: "./src/server/db/schema.ts",
   out: "./drizzle/migrations",
-  dialect: "postgresql",
+  dialect: "sqlite",
   dbCredentials: {
     url: databaseUrl,
   },
   tablesFilter: ["event-management-system_*"],
   strict: true,
-}; 
+};
