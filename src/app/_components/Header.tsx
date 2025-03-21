@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { UserButton, SignInButton, SignedIn, SignedOut } from "@clerk/nextjs";
+import { InteractiveHoverButton } from "~/components/ui/interactive-hover-button";
+import { ThemeToggle } from "~/components/theme-toggle";
 
 export function Header() {
   return (
@@ -49,17 +51,19 @@ export function Header() {
           </nav>
         </div>
         <div className="flex items-center gap-4">
+          <ThemeToggle />
           <SignedIn>
             <UserButton afterSignOutUrl="/" />
           </SignedIn>
           <SignedOut>
             <SignInButton mode="modal">
-              <button
-                type="button"
-                className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
-              >
-                Sign In
-              </button>
+              <div className="inline-block">
+                <InteractiveHoverButton
+                  type="button"
+                  text="Sign In"
+                  className="w-auto bg-blue-600 text-white hover:bg-blue-700"
+                />
+              </div>
             </SignInButton>
           </SignedOut>
         </div>

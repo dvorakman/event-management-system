@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 
 import { api, HydrateClient } from "~/trpc/server";
+import { InteractiveHoverButton } from "~/components/ui/interactive-hover-button";
 
 // Loading component shown during event data fetch
 function EventsLoading() {
@@ -11,13 +12,13 @@ function EventsLoading() {
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
         {Array.from({ length: 6 }).map((_, index) => (
           <div
-            key={index}
+            key={`loading-card-${index}`}
             className="flex animate-pulse flex-col rounded-lg bg-white p-6 shadow-md dark:bg-gray-800"
           >
-            <div className="mb-4 h-6 w-3/4 rounded bg-gray-200 dark:bg-gray-700"></div>
-            <div className="mb-2 h-4 w-full rounded bg-gray-200 dark:bg-gray-700"></div>
-            <div className="mb-4 h-4 w-2/3 rounded bg-gray-200 dark:bg-gray-700"></div>
-            <div className="mt-auto h-10 w-1/3 rounded bg-gray-200 dark:bg-gray-700"></div>
+            <div className="mb-4 h-6 w-3/4 rounded bg-gray-200 dark:bg-gray-700" />
+            <div className="mb-2 h-4 w-full rounded bg-gray-200 dark:bg-gray-700" />
+            <div className="mb-4 h-4 w-2/3 rounded bg-gray-200 dark:bg-gray-700" />
+            <div className="mt-auto h-10 w-1/3 rounded bg-gray-200 dark:bg-gray-700" />
           </div>
         ))}
       </div>
@@ -85,11 +86,11 @@ async function EventsList() {
               </div>
             </div>
             <div className="mt-auto">
-              <Link
-                href={`/events/${event.id}`}
-                className="inline-block rounded-md bg-blue-600 px-4 py-2 text-center text-sm font-medium text-white hover:bg-blue-700"
-              >
-                View Details
+              <Link href={`/events/${event.id}`} className="inline-block">
+                <InteractiveHoverButton
+                  text="View Details"
+                  className="w-auto bg-blue-600 text-white hover:bg-blue-700"
+                />
               </Link>
             </div>
           </div>
@@ -100,9 +101,12 @@ async function EventsList() {
         <div className="mt-8 flex justify-center">
           <Link
             href={`/events?cursor=${eventsData.nextCursor}`}
-            className="rounded-md border border-blue-600 px-4 py-2 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900"
+            className="inline-block"
           >
-            Load More
+            <InteractiveHoverButton
+              text="Load More"
+              className="w-auto border border-blue-600 bg-transparent text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900"
+            />
           </Link>
         </div>
       )}

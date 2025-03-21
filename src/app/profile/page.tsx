@@ -1,5 +1,6 @@
 import { auth, currentUser } from "@clerk/nextjs";
 import Link from "next/link";
+import { InteractiveHoverButton } from "~/components/ui/interactive-hover-button";
 
 export default async function ProfilePage() {
   const { userId } = auth();
@@ -22,11 +23,11 @@ export default async function ProfilePage() {
           </p>
 
           <div className="mt-6">
-            <Link
-              href="/"
-              className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
-            >
-              Back to Home
+            <Link href="/" className="inline-block">
+              <InteractiveHoverButton
+                text="Back to Home"
+                className="w-auto bg-blue-600 text-white hover:bg-blue-700"
+              />
             </Link>
           </div>
         </div>
@@ -34,11 +35,11 @@ export default async function ProfilePage() {
         <div className="rounded-lg bg-white p-6 shadow-md dark:bg-gray-800">
           <p className="mb-4">You are not signed in.</p>
           <div className="mt-6">
-            <Link
-              href="/sign-in"
-              className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
-            >
-              Sign In
+            <Link href="/sign-in" className="inline-block">
+              <InteractiveHoverButton
+                text="Sign In"
+                className="w-auto bg-blue-600 text-white hover:bg-blue-700"
+              />
             </Link>
           </div>
         </div>
