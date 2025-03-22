@@ -71,7 +71,16 @@ This project supports both local PostgreSQL for development and Neon serverless 
    - If Docker fails to start, ensure Docker Desktop is running
    - If connection fails, try stopping any existing containers and starting again
 
-5. **Run the development server**
+5. **Generate and run migrations**
+   ```bash
+   # Generate migrations based on your schema
+   bun run db:generate
+   
+   # Apply migrations to the database
+   bun run db:migrate
+   ```
+
+6. **Run the development server**
    ```
    bun run dev
    ```
