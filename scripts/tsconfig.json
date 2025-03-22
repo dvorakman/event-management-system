@@ -1,0 +1,14 @@
+{
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    /* Override options for scripts */
+    "noEmit": true,
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "allowSyntheticDefaultImports": true,
+    /* Allow 'any' types in these utility scripts */
+    "noImplicitAny": false
+  },
+  "include": ["./**/*.ts"],
+  "exclude": ["node_modules"]
+} 

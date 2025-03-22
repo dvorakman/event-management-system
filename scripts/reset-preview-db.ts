@@ -1,6 +1,15 @@
 import postgres from "postgres";
 import { env } from "~/env";
 
+// Explicitly declare types for error handling to avoid TypeScript errors
+interface PostgresError extends Error {
+  code?: string;
+  severity?: string;
+  message: string;
+  stack?: string;
+  detail?: string;
+}
+
 /**
  * This script resets the database schema for preview environments
  * It drops and recreates the public schema, giving us a clean slate for migrations
@@ -52,7 +61,8 @@ async function resetPreviewDatabase() {
     } catch (error) {
       // Ignore errors if schema doesn't exist - this might be the first run
       console.log("Note: Could not drop schema, it may not exist yet.");
-      console.log("Error details:", error.message);
+      const pgError = error as PostgresError;
+      console.log("Error details:", pgError.message || "Unknown error");
     }
     
     try {
@@ -69,11 +79,16 @@ async function resetPreviewDatabase() {
     
   } catch (error) {
     console.error("❌ Error resetting preview database:");
-    console.error(`Error code: ${error.code}`);
-    console.error(`Error message: ${error.message}`);
+    const pgError = error as PostgresError;
     
-    if (error.stack) {
-      console.error("Stack trace:", error.stack);
+    if (pgError.code) {
+      console.error(`Error code: ${pgError.code}`);
+    }
+    
+    console.error(`Error message: ${pgError.message || String(error)}`);
+    
+    if (pgError.stack) {
+      console.error("Stack trace:", pgError.stack);
     }
     
     process.exit(1);
@@ -85,7 +100,8 @@ async function resetPreviewDatabase() {
         await sql.end();
         console.log("Database connection closed");
       } catch (closeError) {
-        console.error("Error closing database connection:", closeError);
+        const pgCloseError = closeError as PostgresError;
+        console.error("Error closing database connection:", pgCloseError.message || String(closeError));
       }
     }
   }
@@ -94,8 +110,9 @@ async function resetPreviewDatabase() {
 }
 
 // Execute the script
-resetPreviewDatabase().catch(err => {
+resetPreviewDatabase().catch((err) => {
   console.error("Failed to reset preview database:", err);
-  console.error("Stack trace:", err.stack);
+  const pgError = err as PostgresError;
+  console.error("Stack trace:", pgError.stack || "No stack trace available");
   process.exit(1);
 }); 

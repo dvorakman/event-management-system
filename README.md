@@ -249,7 +249,7 @@ The project supports two database environments:
    - Ensure `NEON_DATABASE_URL` is set in Vercel
    - Build command includes migrations:
      ```bash
-     bun run db:migrate && next build
+     bun run build:app
      ```
 
 2. **Database Safety**

@@ -35,6 +35,11 @@ The solution consists of two parts:
 
 The build command sequence is:
 ```
+bun run build:app
+```
+
+Which expands to:
+```
 bun run scripts/reset-preview-db.ts && bun run db:migrate && next build
 ```
 
