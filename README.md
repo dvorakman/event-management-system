@@ -9,6 +9,12 @@ This project supports both local PostgreSQL for development and Neon serverless 
 1. **Neon Serverless PostgreSQL**: When `NEON_DATABASE_URL` environment variable is present
 2. **Local PostgreSQL**: When `NEON_DATABASE_URL` is not present (default for development)
 
+### Preview Deployments
+
+For Vercel preview deployments, the database schema is automatically reset before migrations are applied. This ensures each preview deployment starts with a clean database state and prevents conflicts between multiple previews.
+
+For more details, see [Preview Deployments Documentation](./docs/PREVIEW_DEPLOYMENTS.md).
+
 ### Setting Up Local Development
 
 1. **Clone the repository**
