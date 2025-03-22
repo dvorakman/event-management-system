@@ -53,6 +53,47 @@ bun run scripts/reset-preview-db.ts && bun run db:migrate && next build
 
 3. **Production Safety**: The script checks for `VERCEL_ENV === "preview"` to ensure it never runs in production.
 
+## Common Errors and Solutions
+
+### "Cannot insert multiple commands into a prepared statement"
+
+**Problem:**
+```
+PostgresError: cannot insert multiple commands into a prepared statement
+```
+
+**Solution:**
+This error occurs when trying to execute multiple SQL commands in a single prepared statement. The fix is to execute each command separately:
+
+```typescript
+// Instead of:
+await sql`DROP SCHEMA public CASCADE; CREATE SCHEMA public;`;
+
+// Do:
+await sql`DROP SCHEMA public CASCADE`;
+await sql`CREATE SCHEMA public`;
+```
+
+The script now handles this by executing each SQL command separately with proper error handling.
+
+### "Schema does not exist" or "Permission denied"
+
+**Problem:** Errors related to schema existence or permissions.
+
+**Solution:**
+- Ensure the database user has sufficient permissions
+- The script now includes error handling for cases where the schema doesn't exist yet
+- Enhanced logging helps identify permission issues
+
+### Connection Timeout or Network Issues
+
+**Problem:** The script cannot connect to the database.
+
+**Solution:**
+- Verify the database URL is correct
+- Check network permissions (especially for Neon serverless)
+- The script now includes enhanced error reporting and connection testing
+
 ## Troubleshooting
 
 If you still encounter database-related errors in preview deployments:
@@ -61,7 +102,7 @@ If you still encounter database-related errors in preview deployments:
 
 2. **Verify Database Permissions**: The database user must have permission to drop and create schemas.
 
-3. **Check Logs**: Review the Vercel build logs to see if the reset script ran successfully.
+3. **Check Logs**: Review the Vercel build logs to see if the reset script ran successfully. The improved error reporting should provide helpful diagnostic information.
 
 4. **Manual Reset**: If needed, you can manually reset the database using a PostgreSQL client:
    ```sql
@@ -69,4 +110,9 @@ If you still encounter database-related errors in preview deployments:
    CREATE SCHEMA public;
    ```
 
-5. **Database Connection Issues**: If the script fails to connect to the database, check network permissions and connection limits. 
+5. **Database Connection Issues**: If the script fails to connect to the database, check:
+   - Network permissions
+   - Connection limits
+   - Firewall rules
+   - IP allowlisting (especially for Neon)
+   - SSL requirements 
