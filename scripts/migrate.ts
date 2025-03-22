@@ -31,4 +31,10 @@ async function main() {
   
   await sql.end();
   process.exit(0);
-} 
+}
+
+// Execute the main function
+main().catch(err => {
+  console.error("Failed to run migrations:", err);
+  process.exit(1);
+}); 
