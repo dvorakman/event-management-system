@@ -19,9 +19,9 @@ export default async function Home() {
         {/* Hero Section with Globe */}
         <section className="bg-gradient-to-b from-blue-600 to-blue-800 py-10 text-white md:py-20">
           <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="grid grid-cols-1 items-center gap-8 md:grid-cols-2">
+            <div className="flex min-h-[550px] flex-col items-center justify-between gap-8 md:flex-row md:gap-12">
               {/* Text content */}
-              <div className="flex flex-col space-y-6 text-center md:text-left">
+              <div className="flex flex-col justify-center space-y-6 text-center md:w-2/5 md:text-left">
                 <h1 className="text-4xl font-extrabold tracking-tight sm:text-5xl md:text-6xl">
                   Find and Manage Events
                 </h1>
@@ -57,8 +57,10 @@ export default async function Home() {
               </div>
 
               {/* Globe component */}
-              <div className="h-[650px] w-full overflow-hidden rounded-lg">
-                <GlobeWrapper />
+              <div className="relative flex h-[400px] w-full md:absolute md:right-0 md:mr-4 md:h-[600px] md:w-[45%] lg:mr-5">
+                <div className="h-full w-full">
+                  <Globe />
+                </div>
               </div>
             </div>
           </div>
