@@ -9,6 +9,12 @@ This project supports both local PostgreSQL for development and Neon serverless 
 1. **Neon Serverless PostgreSQL**: When `NEON_DATABASE_URL` environment variable is present
 2. **Local PostgreSQL**: When `NEON_DATABASE_URL` is not present (default for development)
 
+### Preview Deployments
+
+For Vercel preview deployments, the database schema is automatically reset before migrations are applied. This ensures each preview deployment starts with a clean database state and prevents conflicts between multiple previews.
+
+For more details, see [Preview Deployments Documentation](./docs/PREVIEW_DEPLOYMENTS.md).
+
 ### Setting Up Local Development
 
 1. **Clone the repository**
@@ -84,7 +90,16 @@ This project supports both local PostgreSQL for development and Neon serverless 
    - If Docker fails to start, ensure Docker Desktop is running
    - If connection fails, try stopping any existing containers and starting again
 
-5. **Run the development server**
+5. **Generate and run migrations**
+   ```bash
+   # Generate migrations based on your schema
+   bun run db:generate
+   
+   # Apply migrations to the database
+   bun run db:migrate
+   ```
+
+6. **Run the development server**
    ```
    bun run dev
    ```
@@ -233,11 +248,36 @@ The project supports two database environments:
    # Apply pending migrations
    bun run db:migrate
 
+   # Reset database and run all migrations (fresh start)
+   bun run db:migrate:fresh
+
    # View database state
    bun run db:studio
    ```
 
-3. **Troubleshooting Migrations**
+3. **Database Reset**
+
+   The `db:migrate:fresh` command provides a way to completely reset your database and start fresh:
+   
+   ```bash
+   bun run db:migrate:fresh
+   ```
+   
+   This command:
+   - Drops the entire public schema
+   - Creates a new public schema
+   - Runs all migrations from scratch
+   - Works with both local PostgreSQL and Neon databases
+   
+   Use this when:
+   - You need a clean database state
+   - You're experiencing migration conflicts
+   - You want to reset development data
+   - Testing deployment scenarios
+   
+   ⚠️ **Warning**: This command will delete all data in the database. Only use it in development or when you're sure you want to start fresh.
+
+4. **Troubleshooting Migrations**
 
    - If migrations fail:
      1. Check database connection
@@ -248,6 +288,7 @@ The project supports two database environments:
      - "Relation already exists": Migration already applied
      - "Relation doesn't exist": Missing migration
      - "Column cannot be null": Data consistency issue
+     - Database state issues: Try `db:migrate:fresh` to reset
 
 ### Production Deployments
 
@@ -257,17 +298,28 @@ The project supports two database environments:
    - Ensure `NEON_DATABASE_URL` is set in Vercel
    - Build command includes migrations:
      ```bash
-     bun run db:migrate && next build
+     bun run build:app
      ```
 
-2. **Database Safety**
+2. **Preview Deployments**
+
+   The system supports Vercel preview deployments with database schema reset:
+   
+   - Preview environments automatically reset the database schema
+   - Each PR gets a clean database state
+   - No data conflicts between different preview deployments
+   - Set `VERCEL_ENV=preview` to enable automatic schema reset
+   
+   This ensures that your preview deployments always start with a clean database, making testing easier and more reliable.
+
+3. **Database Safety**
 
    - Always backup before major migrations
    - Test migrations on staging if possible
    - Use transactions for data migrations
    - Consider downtime for large migrations
 
-3. **Monitoring & Maintenance**
+4. **Monitoring & Maintenance**
    - Check migration status in production
    - Monitor database performance
    - Keep migrations under version control

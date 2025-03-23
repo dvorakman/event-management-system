@@ -29,7 +29,7 @@ function EventsLoading() {
 // Component to fetch and display events
 async function EventsList() {
   // Fetch events from API
-  const eventsData = await api.event.list.query();
+  const eventsData = await api.event.list();
 
   // If no events are found
   if (eventsData.items.length === 0) {
@@ -47,8 +47,8 @@ async function EventsList() {
   }
 
   // Function to format dates for display
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
+  const formatDate = (dateString: string | Date) => {
+    const date = dateString instanceof Date ? dateString : new Date(dateString);
     return date.toLocaleDateString("en-US", {
       weekday: "short",
       month: "short",
