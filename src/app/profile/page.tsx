@@ -1,10 +1,10 @@
-import { auth, currentUser } from "@clerk/nextjs";
+import { currentUser } from "@clerk/nextjs/server";
 import Link from "next/link";
 import { InteractiveHoverButton } from "~/components/ui/interactive-hover-button";
 
 export default async function ProfilePage() {
-  const { userId } = auth();
   const user = await currentUser();
+  const userId = user?.id;
 
   return (
     <div className="container mx-auto p-8">
