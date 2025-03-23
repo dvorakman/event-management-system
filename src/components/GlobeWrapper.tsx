@@ -1,6 +1,11 @@
 "use client";
 
-import { World } from "~/components/ui/globe";
+import dynamic from 'next/dynamic';
+
+// Import the World component with dynamic import and disable SSR
+const World = dynamic(() => import('~/components/ui/globe').then(mod => mod.World), {
+  ssr: false,
+});
 
 // Sample event data for the globe visualization
 // REDUCED the total number of locations to minimize blue dots
