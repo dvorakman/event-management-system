@@ -7,6 +7,8 @@ import { InteractiveHoverButton } from "~/components/ui/interactive-hover-button
 import { GlobeWrapper } from "~/components/GlobeWrapper";
 import { Globe } from "~/components/ui/globe";
 import { BackgroundGradient } from "~/components/ui/background-gradient";
+import { BackgroundBoxes } from "~/components/ui/background-boxes";
+import { BeamsBackground } from "~/components/ui/beams-background";
 
 export default async function Home() {
   const hello = await api.post.hello({ text: "from tRPC" });
@@ -17,12 +19,16 @@ export default async function Home() {
     <HydrateClient>
       <div className="flex flex-col">
         {/* Hero Section with Globe */}
-        <section className="bg-gradient-to-b from-blue-600 to-blue-800 py-10 text-white md:py-20">
-          <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="flex min-h-[550px] flex-col items-center justify-between gap-8 md:flex-row md:gap-12">
+        <div className="relative min-h-[550px]">
+          <BackgroundBoxes 
+            className="fixed inset-0 z-0"
+          />
+          
+          <div className="relative z-10 container mx-auto px-4 sm:px-6 lg:px-8 pointer-events-none">
+            <div className="flex min-h-[550px] flex-col items-center justify-between gap-8 py-10 md:flex-row md:gap-12 md:py-20">
               {/* Text content */}
-              <div className="flex flex-col justify-center space-y-6 text-center md:w-2/5 md:text-left">
-                <h1 className="text-4xl font-extrabold tracking-tight sm:text-5xl md:text-6xl">
+              <div className="flex flex-col justify-center space-y-6 text-center md:w-2/5 md:text-left pointer-events-auto">
+                <h1 className="text-4xl font-extrabold tracking-tight text-white sm:text-5xl md:text-6xl">
                   Find and Manage Events
                 </h1>
                 <p className="max-w-2xl text-xl text-blue-100">
@@ -30,7 +36,7 @@ export default async function Home() {
                   platform makes event management simple and enjoyable.
                 </p>
                 <div className="mt-8 flex flex-col space-y-4 sm:flex-row sm:space-x-4 sm:space-y-0">
-                  <Link href="/events" className="inline-block">
+                  <Link href="/events" className="inline-block pointer-events-auto">
                     <InteractiveHoverButton
                       text="Browse Events"
                       className="w-auto bg-white text-blue-700 shadow-lg hover:bg-gray-100"
@@ -57,14 +63,14 @@ export default async function Home() {
               </div>
 
               {/* Globe component */}
-              <div className="relative flex h-[400px] w-full md:absolute md:right-0 md:mr-4 md:h-[600px] md:w-[45%] lg:mr-5">
+              <div className="relative flex h-[400px] w-full md:absolute md:right-0 md:mr-4 md:h-[600px] md:w-[45%] lg:mr-5 pointer-events-auto">
                 <div className="h-full w-full">
                   <Globe />
                 </div>
               </div>
             </div>
           </div>
-        </section>
+        </div>
 
         {/* Features Section */}
         <section className="py-16">
