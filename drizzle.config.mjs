@@ -6,7 +6,7 @@ const databaseUrl = process.env.NEON_DATABASE_URL ?? process.env.DATABASE_URL;
 
 if (!databaseUrl) {
   throw new Error(
-    "No database URL provided. Set either NEON_DATABASE_URL (for production) or DATABASE_URL (for local development)"
+    "No database URL provided. Set either NEON_DATABASE_URL (for production) or DATABASE_URL (for local development)",
   );
 }
 
@@ -20,4 +20,4 @@ export default {
   },
   tablesFilter: ["event-management-system_*"],
   strict: true,
-}; 
+};

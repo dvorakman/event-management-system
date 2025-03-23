@@ -38,4 +38,4 @@ if (!globalForDb.db) {
   }
 }
 
-export const db = globalForDb.db as ReturnType<typeof drizzle>;
+export const db = globalForDb.db as ReturnType<typeof drizzle> | ReturnType<typeof drizzleNode>;
