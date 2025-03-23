@@ -8,7 +8,7 @@ export const env = createEnv({
    */
   server: {
     DATABASE_URL: z.string().min(1),
-    DATABASE_AUTH_TOKEN: z.string().optional(),
+    NEON_DATABASE_URL: z.string().optional(),
     NODE_ENV: z
       .enum(["development", "test", "production"])
       .default("development"),
@@ -30,7 +30,7 @@ export const env = createEnv({
    */
   runtimeEnv: {
     DATABASE_URL: process.env.DATABASE_URL,
-    DATABASE_AUTH_TOKEN: process.env.DATABASE_AUTH_TOKEN,
+    NEON_DATABASE_URL: process.env.NEON_DATABASE_URL,
     NODE_ENV: process.env.NODE_ENV,
     CLERK_SECRET_KEY: process.env.CLERK_SECRET_KEY,
     NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY:
@@ -53,13 +53,13 @@ export const env = createEnv({
   onValidationError: (error) => {
     const missingDatabaseUrl = error.issues.some(
       (issue) =>
-        issue.path.includes("DATABASE_URL") ||
-        issue.path.includes("DATABASE_AUTH_TOKEN"),
+        issue.path.includes("DATABASE_URL") || 
+        issue.path.includes("NEON_DATABASE_URL")
     );
 
     if (missingDatabaseUrl) {
       throw new Error(
-        "Either DATABASE_URL (for local development) or DATABASE_AUTH_TOKEN (for production) must be provided",
+        "Either DATABASE_URL (for local development) or NEON_DATABASE_URL (for production) must be provided"
       );
     }
 

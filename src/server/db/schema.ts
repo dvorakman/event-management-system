@@ -5,11 +5,14 @@ import { sql } from "drizzle-orm";
 import {
   index,
   integer,
-  sqliteTableCreator,
+  pgTableCreator,
+  timestamp,
+  varchar,
   text,
-  real,
+  decimal,
+  boolean,
   primaryKey,
-} from "drizzle-orm/sqlite-core";
+} from "drizzle-orm/pg-core";
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -19,7 +22,7 @@ import { z } from "zod";
  *
  * @see https://orm.drizzle.team/docs/goodies#multi-project-schema
  */
-export const createTable = sqliteTableCreator(
+export const createTable = pgTableCreator(
   (name) => `event-management-system_${name}`,
 );
 
@@ -33,10 +36,10 @@ export const users = createTable(
     role: text("role", { enum: ["user", "organizer", "admin"] })
       .default("user")
       .notNull(),
-    createdAt: text("created_at")
+    createdAt: timestamp("created_at", { withTimezone: true })
       .default(sql`CURRENT_TIMESTAMP`)
       .notNull(),
-    updatedAt: text("updated_at").$onUpdate(() => new Date().toISOString()),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).$onUpdate(() => new Date()),
   },
   (table) => ({
     emailIdx: index("email_idx").on(table.email),
@@ -47,17 +50,17 @@ export const users = createTable(
 export const events = createTable(
   "event",
   {
-    id: integer("id").primaryKey({ autoIncrement: true }),
+    id: integer("id").primaryKey().generatedByDefaultAsIdentity(),
     name: text("name").notNull(),
     description: text("description").notNull(),
-    startDate: text("start_date").notNull(), // ISO date string
-    endDate: text("end_date").notNull(), // ISO date string
+    startDate: timestamp("start_date", { withTimezone: true }).notNull(),
+    endDate: timestamp("end_date", { withTimezone: true }).notNull(),
     location: text("location").notNull(),
     type: text("type", {
       enum: ["conference", "concert", "workshop", "networking", "other"],
     }).notNull(),
-    generalTicketPrice: real("general_ticket_price").notNull(),
-    vipTicketPrice: real("vip_ticket_price").notNull(),
+    generalTicketPrice: decimal("general_ticket_price", { precision: 10, scale: 2 }).notNull(),
+    vipTicketPrice: decimal("vip_ticket_price", { precision: 10, scale: 2 }).notNull(),
     vipPerks: text("vip_perks").notNull(),
     maxAttendees: integer("max_attendees").notNull(),
     organizerId: text("organizer_id")
@@ -68,10 +71,10 @@ export const events = createTable(
     })
       .default("draft")
       .notNull(),
-    createdAt: text("created_at")
+    createdAt: timestamp("created_at", { withTimezone: true })
       .default(sql`CURRENT_TIMESTAMP`)
       .notNull(),
-    updatedAt: text("updated_at").$onUpdate(() => new Date().toISOString()),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).$onUpdate(() => new Date()),
   },
   (table) => ({
     organizerIdx: index("organizer_idx").on(table.organizerId),
@@ -85,7 +88,7 @@ export const events = createTable(
 export const registrations = createTable(
   "registration",
   {
-    id: integer("id").primaryKey({ autoIncrement: true }),
+    id: integer("id").primaryKey().generatedByDefaultAsIdentity(),
     userId: text("user_id")
       .notNull()
       .references(() => users.id),
@@ -103,11 +106,11 @@ export const registrations = createTable(
     })
       .default("pending")
       .notNull(),
-    totalAmount: real("total_amount").notNull(),
-    createdAt: text("created_at")
+    totalAmount: decimal("total_amount", { precision: 10, scale: 2 }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
       .default(sql`CURRENT_TIMESTAMP`)
       .notNull(),
-    updatedAt: text("updated_at").$onUpdate(() => new Date().toISOString()),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).$onUpdate(() => new Date()),
   },
   (table) => ({
     userEventIdx: index("user_event_idx").on(table.userId, table.eventId),
@@ -120,14 +123,14 @@ export const registrations = createTable(
 export const tickets = createTable(
   "ticket",
   {
-    id: integer("id").primaryKey({ autoIncrement: true }),
+    id: integer("id").primaryKey().generatedByDefaultAsIdentity(),
     registrationId: integer("registration_id")
       .notNull()
       .references(() => registrations.id),
     ticketNumber: text("ticket_number").notNull(),
     qrCode: text("qr_code").notNull(), // URL or encoded string for QR code
-    isUsed: integer("is_used", { mode: "boolean" }).default(false).notNull(),
-    createdAt: text("created_at")
+    isUsed: boolean("is_used").default(false).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
       .default(sql`CURRENT_TIMESTAMP`)
       .notNull(),
   },
@@ -141,7 +144,7 @@ export const tickets = createTable(
 export const notifications = createTable(
   "notification",
   {
-    id: integer("id").primaryKey({ autoIncrement: true }),
+    id: integer("id").primaryKey().generatedByDefaultAsIdentity(),
     userId: text("user_id")
       .notNull()
       .references(() => users.id),
@@ -150,9 +153,9 @@ export const notifications = createTable(
     type: text("type", {
       enum: ["registration", "reminder", "cancellation", "update"],
     }).notNull(),
-    isRead: integer("is_read", { mode: "boolean" }).default(false).notNull(),
+    isRead: boolean("is_read").default(false).notNull(),
     eventId: integer("event_id").references(() => events.id),
-    createdAt: text("created_at")
+    createdAt: timestamp("created_at", { withTimezone: true })
       .default(sql`CURRENT_TIMESTAMP`)
       .notNull(),
   },
@@ -166,12 +169,12 @@ export const notifications = createTable(
 export const posts = createTable(
   "post",
   {
-    id: integer("id").primaryKey({ autoIncrement: true }),
-    name: text("name"),
-    createdAt: text("createdAt")
+    id: integer("id").primaryKey().generatedByDefaultAsIdentity(),
+    name: varchar("name", { length: 256 }),
+    createdAt: timestamp("createdAt", { withTimezone: true })
       .default(sql`CURRENT_TIMESTAMP`)
       .notNull(),
-    updatedAt: text("updatedAt").$onUpdate(() => new Date().toISOString()),
+    updatedAt: timestamp("updatedAt", { withTimezone: true }).$onUpdate(() => new Date()),
   },
   (example) => ({
     nameIndex: index("name_idx").on(example.name),
