@@ -7,7 +7,7 @@ declare module 'cobe' {
   export interface COBEOptions {
     width: number;
     height: number;
-    onRender: (state: Record<string, any>) => void;
+    onRender: (state: Record<string, unknown>) => void;
     devicePixelRatio?: number;
     phi?: number;
     theta?: number;

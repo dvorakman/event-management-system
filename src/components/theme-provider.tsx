@@ -11,7 +11,7 @@ interface ThemeProviderProps {
   children: React.ReactNode;
   defaultTheme?: string;
   attribute?: Attribute | Attribute[];
-  value?: { [x: string]: string };
+  value?: Record<string, string>;
   forcedTheme?: string;
   enableSystem?: boolean;
   disableTransitionOnChange?: boolean;

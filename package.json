@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "bun run db:reset:preview && bun run db:migrate && next build --no-lint",
+    "build": "bun run db:reset:preview && bun run db:migrate && next build",
     "check": "next lint && tsc --noEmit",
     "db:generate": "drizzle-kit generate --config=drizzle.config.mjs",
     "db:migrate": "bun run scripts/migrate.ts",

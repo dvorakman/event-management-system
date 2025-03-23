@@ -1,17 +1,14 @@
 import Link from "next/link";
 import { SignedIn, SignedOut, SignInButton } from "@clerk/nextjs";
-import { Suspense } from "react";
 
 import { api, HydrateClient } from "~/trpc/server";
 import { InteractiveHoverButton } from "~/components/ui/interactive-hover-button";
-import { GlobeWrapper } from "~/components/GlobeWrapper";
 import { Globe } from "~/components/ui/globe";
 import { BackgroundGradient } from "~/components/ui/background-gradient";
 import { BackgroundBoxes } from "~/components/ui/background-boxes";
-import { BeamsBackground } from "~/components/ui/beams-background";
 
 export default async function Home() {
-  const hello = await api.post.hello({ text: "from tRPC" });
+  await api.post.hello({ text: "from tRPC" });
 
   void api.post.getLatest.prefetch();
 

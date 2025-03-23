@@ -2,7 +2,7 @@ import { z } from "zod";
 import { and, eq, gt } from "drizzle-orm";
 
 import { createTRPCRouter, publicProcedure } from "~/server/api/trpc";
-import { events, insertEventSchema } from "~/server/db/schema";
+import { events } from "~/server/db/schema";
 
 export const eventRouter = createTRPCRouter({
   // Get all events with filtering options
@@ -48,7 +48,7 @@ export const eventRouter = createTRPCRouter({
         .from(events)
         .where(and(...conditions))
         .orderBy(events.startDate)
-        .limit(input?.limit || 10);
+        .limit(input?.limit ?? 10);
 
       // Get the next cursor
       let nextCursor: number | undefined = undefined;
@@ -75,7 +75,7 @@ export const eventRouter = createTRPCRouter({
         .where(eq(events.id, input.id))
         .limit(1);
 
-      return result[0] || null;
+      return result[0] ?? null;
     }),
 
   // Get upcoming events (limit to next 5 events)
@@ -92,7 +92,7 @@ export const eventRouter = createTRPCRouter({
           eq(events.status, "published")
         ))
         .orderBy(events.startDate)
-        .limit(input?.limit || 5);
+        .limit(input?.limit ?? 5);
 
       return result;
     }),
