@@ -1,10 +1,11 @@
-import { env } from "../src/env";
-import { resetDatabaseSchema, PostgresError } from "./db-utils";
+import { env } from "../src/env.js";
+import { resetDatabaseSchema, PostgresError } from "./db-utils.js";
+import main from "./migrate.js";
 
 /**
  * This script resets and migrates the database - giving a fresh start
  */
-async function main() {
+async function runFreshMigration() {
   const dbUrl = env.NEON_DATABASE_URL ?? env.DATABASE_URL;
 
   if (!dbUrl) {
@@ -13,7 +14,15 @@ async function main() {
   }
 
   try {
-    await resetDatabaseSchema(dbUrl);
+    // Reset the database schema (drops and recreates tables)
+    await resetDatabaseSchema(dbUrl, { 
+      // Don't run migrations here, we'll do it manually afterwards
+      runMigrations: false
+    });
+    
+    // Now run the improved migration function
+    await main();
+    
     console.log("✅ Database reset and migrations completed successfully");
   } catch (error) {
     console.error("Failed to reset database:", error);
@@ -25,7 +34,7 @@ async function main() {
   process.exit(0);
 }
 
-main().catch((err) => {
+runFreshMigration().catch((err) => {
   console.error("Failed to reset database:", err);
-  process.exit(1);
+  process.exit(1); 
 }); 
