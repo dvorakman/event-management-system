@@ -13,7 +13,6 @@
     "db:push": "drizzle-kit push --config=drizzle.config.mjs",
     "db:studio": "drizzle-kit studio --config=drizzle.config.mjs",
     "db:start": "node scripts/start-db.mjs",
-    "db:generate-test-data": "bun run scripts/generate-test-data.ts",
     "dev": "next dev --turbo",
     "dev:webpack": "next dev",
     "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,mdx}\" --cache",
