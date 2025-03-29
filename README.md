@@ -247,13 +247,69 @@ The project supports two database environments:
 
    # Apply pending migrations
    bun run db:migrate
-
-   # Reset database and run all migrations (fresh start)
-   bun run db:migrate:fresh
-
-   # View database state
-   bun run db:studio
    ```
+
+### Database Seeding
+
+The project includes a database seeding script to populate your database with test data. This is useful for development and testing purposes.
+
+#### Running the Seed Script
+
+```bash
+# Populate the database with test data
+bun run db:seed
+```
+
+The seeding script will:
+
+1. Clear existing data from all tables
+2. Create 10 event organizers with realistic profiles
+3. Generate 20 events with various:
+   - Types (conference, concert, workshop, networking, other)
+   - Statuses (draft, published, cancelled, completed)
+   - Dates, locations, and ticket prices
+4. Create 50 event registrations with:
+   - Mixed ticket types (general, VIP)
+   - Various statuses (pending, confirmed, cancelled, refunded)
+   - Automatic ticket generation for confirmed registrations
+   - Corresponding notifications
+
+#### Test Data Details
+
+The seed script generates realistic test data using Faker.js, including:
+
+**Users/Organizers:**
+- Full profiles with name, email, phone, address
+- Communication preferences
+- Privacy settings
+- Terms of service acceptance
+- Login history
+
+**Events:**
+- Varied event types and statuses
+- Future dates with realistic durations
+- Location information
+- General and VIP ticket pricing
+- Attendance limits
+- Detailed descriptions and VIP perks
+
+**Registrations & Tickets:**
+- Mixed ticket types and statuses
+- Payment status tracking
+- QR codes for confirmed registrations
+- Usage tracking for tickets
+
+**Notifications:**
+- Registration status updates
+- Event-specific notifications
+- Read/unread status
+
+This test data provides a comprehensive foundation for testing all features of the event management system, including:
+- Event discovery and filtering
+- Registration workflows
+- Ticket management
+- Notification systems
+- User roles and permissions
 
 3. **Database Reset**
 

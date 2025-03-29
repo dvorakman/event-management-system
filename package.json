@@ -13,6 +13,7 @@
     "db:push": "drizzle-kit push --config=drizzle.config.mjs",
     "db:studio": "drizzle-kit studio --config=drizzle.config.mjs",
     "db:start": "node scripts/start-db.mjs",
+    "db:seed": "bun run scripts/seed-db.ts",
     "dev": "next dev --turbo",
     "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,mdx}\" --cache",
     "format:write": "prettier --write \"**/*.{ts,tsx,js,jsx,mdx}\" --cache",
@@ -58,6 +59,7 @@
   },
   "devDependencies": {
     "@clerk/types": "^4.48.0",
+    "@faker-js/faker": "^9.6.0",
     "@types/eslint": "^8.56.10",
     "@types/node": "^20.14.10",
     "@types/react": "^18.3.3",
