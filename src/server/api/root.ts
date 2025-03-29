@@ -14,14 +14,15 @@ export const appRouter = createTRPCRouter({
   authTest: authTestRouter,
 });
 
-// Export type definition of API
+// Export type router type signature,
+// NOT the router itself.
 export type AppRouter = typeof appRouter;
 
 /**
  * Create a server-side caller for the tRPC API.
  * @example
  * const trpc = createCaller(createContext);
- * const res = await trpc.event.list();
+ * const res = await trpc.event.all();
  *       ^? Event[]
  */
 export const createCaller = createCallerFactory(appRouter);

@@ -172,6 +172,22 @@ export const notifications = createTable(
   }),
 );
 
+// Posts table (keep this for compatibility with existing code)
+export const posts = createTable(
+  "post",
+  {
+    id: integer("id").primaryKey().generatedByDefaultAsIdentity(),
+    name: varchar("name", { length: 256 }),
+    createdAt: timestamp("createdAt", { withTimezone: true })
+      .default(sql`CURRENT_TIMESTAMP`)
+      .notNull(),
+    updatedAt: timestamp("updatedAt", { withTimezone: true }).$onUpdate(() => new Date()),
+  },
+  (example) => ({
+    nameIndex: index("name_idx").on(example.name),
+  }),
+);
+
 // Schema for inserting a user
 export const insertUserSchema = createInsertSchema(users);
 export const selectUserSchema = createSelectSchema(users);
@@ -192,6 +208,10 @@ export const selectTicketSchema = createSelectSchema(tickets);
 export const insertNotificationSchema = createInsertSchema(notifications);
 export const selectNotificationSchema = createSelectSchema(notifications);
 
+// Schema for inserting a post (keep this for compatibility)
+export const insertPostSchema = createInsertSchema(posts);
+export const selectPostSchema = createSelectSchema(posts);
+
 // Export the query builder
 export const queries = {
   users,
@@ -199,6 +219,7 @@ export const queries = {
   registrations,
   tickets,
   notifications,
+  posts,
 } as const;
 
 // Schema type exports
