@@ -8,10 +8,6 @@ import { BackgroundGradient } from "~/components/ui/background-gradient";
 import { BackgroundBoxes } from "~/components/ui/background-boxes";
 
 export default async function Home() {
-  await api.post.hello({ text: "from tRPC" });
-
-  void api.post.getLatest.prefetch();
-
   return (
     <HydrateClient>
       <div className="flex flex-col">
