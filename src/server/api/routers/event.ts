@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { and, eq, gt } from "drizzle-orm";
+import { desc, eq, and, gte, lte, like, or } from "drizzle-orm";
 
 import { createTRPCRouter, publicProcedure } from "~/server/api/trpc";
 import { events } from "~/server/db/schema";
@@ -8,74 +8,94 @@ export const eventRouter = createTRPCRouter({
   // Get all events with filtering options
   list: publicProcedure
     .input(
-      z
-        .object({
-          limit: z.number().min(1).max(100).default(10),
-          cursor: z.number().optional(), // For pagination
-          type: z
-            .enum(["conference", "concert", "workshop", "networking", "other"])
-            .optional(),
-          status: z
-            .enum(["published", "draft", "cancelled", "completed"])
-            .optional(),
-        })
-        .optional(),
+      z.object({
+        limit: z.number().min(1).max(100).optional().default(10),
+        offset: z.number().min(0).optional().default(0),
+        type: z.string().optional(),
+        location: z.string().optional(),
+        startDate: z.string().optional(),
+        endDate: z.string().optional(),
+        minPrice: z.number().optional(),
+        maxPrice: z.number().optional(),
+        searchTerm: z.string().optional(),
+      }),
     )
     .query(async ({ ctx, input }) => {
-      // Build all the conditions
+      // Build conditions array for filtering
       const conditions = [];
-      
-      // Apply filters if provided
-      if (input?.type) {
+
+      // Filter by type
+      if (input.type) {
         conditions.push(eq(events.type, input.type));
       }
 
-      // For public listings, only show published events
-      if (input?.status) {
-        conditions.push(eq(events.status, input.status));
-      } else {
-        conditions.push(eq(events.status, "published"));
+      // Filter by location
+      if (input.location) {
+        conditions.push(like(events.location, `%${input.location}%`));
       }
 
-      // Apply cursor-based pagination
-      if (input?.cursor) {
-        conditions.push(gt(events.id, input.cursor));
+      // Filter by date range
+      if (input.startDate) {
+        conditions.push(gte(events.startDate, new Date(input.startDate)));
       }
+      if (input.endDate) {
+        conditions.push(lte(events.startDate, new Date(input.endDate)));
+      }
+
+      // Filter by price range (using general ticket price)
+      if (input.minPrice !== undefined) {
+        conditions.push(gte(events.generalTicketPrice, input.minPrice));
+      }
+      if (input.maxPrice !== undefined) {
+        conditions.push(lte(events.generalTicketPrice, input.maxPrice));
+      }
+
+      // Search by term in name or description
+      if (input.searchTerm) {
+        conditions.push(
+          or(
+            like(events.name, `%${input.searchTerm}%`),
+            like(events.description, `%${input.searchTerm}%`),
+          ),
+        );
+      }
+
+      // Add status filter to only show published events
+      conditions.push(eq(events.status, "published"));
 
       // Execute query with all conditions
-      const items = await ctx.db
+      const filteredEvents = await ctx.db
         .select()
         .from(events)
         .where(and(...conditions))
-        .orderBy(events.startDate)
-        .limit(input?.limit ?? 10);
+        .orderBy(desc(events.startDate))
+        .limit(input.limit)
+        .offset(input.offset);
 
-      // Get the next cursor
-      let nextCursor: number | undefined = undefined;
-      if (items.length > 0) {
-        const lastItem = items[items.length - 1];
-        if (lastItem) {
-          nextCursor = lastItem.id;
-        }
-      }
-
-      return {
-        items,
-        nextCursor,
-      };
+      // Transform the response to match the expected format
+      return filteredEvents.map(event => ({
+        ...event,
+        ticketPrice: event.generalTicketPrice, // Use general ticket price as the display price
+      }));
     }),
 
   // Get event details by ID
   byId: publicProcedure
-    .input(z.object({ id: z.number() }))
+    .input(z.object({ id: z.union([z.string(), z.number()]) }))
     .query(async ({ ctx, input }) => {
-      const result = await ctx.db
+      const event = await ctx.db
         .select()
         .from(events)
-        .where(eq(events.id, input.id))
+        .where(eq(events.id, Number(input.id)))
         .limit(1);
 
-      return result[0] ?? null;
+      if (!event[0]) return null;
+
+      // Transform the response to match the expected format
+      return {
+        ...event[0],
+        ticketPrice: event[0].generalTicketPrice,
+      };
     }),
 
   // Get upcoming events (limit to next 5 events)
@@ -88,7 +108,7 @@ export const eventRouter = createTRPCRouter({
         .select()
         .from(events)
         .where(and(
-          gt(events.startDate, now),
+          gte(events.startDate, now),
           eq(events.status, "published")
         ))
         .orderBy(events.startDate)

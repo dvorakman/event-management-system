@@ -31,9 +31,20 @@ export const users = createTable(
     id: text("id").primaryKey(), // Using Clerk's user ID
     email: text("email").notNull(),
     name: text("name").notNull(),
+    phoneNumber: text("phone_number"),
+    profilePicture: text("profile_picture_url"),
+    address: text("address"),
+    city: text("city"),
+    country: text("country"),
+    biography: text("biography"),
+    communicationPrefs: text("communication_preferences").default('{"email":true,"push":true}'),
+    privacySettings: text("privacy_settings").default('{"profile":"public","events":"private"}'),
+    tosAccepted: boolean("tos_accepted").default(false),
+    tosAcceptedAt: timestamp("tos_accepted_at", { withTimezone: true }),
     role: text("role", { enum: ["user", "organizer", "admin"] })
       .default("user")
       .notNull(),
+    lastLoginAt: timestamp("last_login_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true })
       .default(sql`CURRENT_TIMESTAMP`)
       .notNull(),
