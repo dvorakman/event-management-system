@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { SignedIn, SignedOut, SignInButton } from "@clerk/nextjs";
 
-import { api, HydrateClient } from "~/trpc/server";
+import { HydrateClient } from "~/trpc/server";
 import { InteractiveHoverButton } from "~/components/ui/interactive-hover-button";
 import { Globe } from "~/components/ui/globe";
 import { BackgroundGradient } from "~/components/ui/background-gradient";

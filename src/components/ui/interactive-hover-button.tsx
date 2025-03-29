@@ -1,62 +1,36 @@
-"use client";
-
-import { ButtonHTMLAttributes } from "react";
+import React from "react";
+import { ArrowRight } from "lucide-react";
 import { cn } from "~/lib/utils";
 
-interface InteractiveHoverButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
-  text: string;
-  isLoading?: boolean;
-  loadingText?: string;
+interface InteractiveHoverButtonProps
+  extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+  text?: string;
 }
 
-export function InteractiveHoverButton({
-  text,
-  isLoading = false,
-  loadingText = "Loading...",
-  className,
-  disabled,
-  ...props
-}: InteractiveHoverButtonProps) {
+const InteractiveHoverButton = React.forwardRef<
+  HTMLButtonElement,
+  InteractiveHoverButtonProps
+>(({ text = "Button", className, ...props }, ref) => {
   return (
     <button
+      ref={ref}
       className={cn(
-        "relative inline-flex items-center justify-center overflow-hidden rounded-md px-4 py-2 text-sm font-medium transition-all duration-300 ease-out focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
+        "group relative inline-flex h-10 items-center justify-center overflow-hidden rounded-md bg-black px-4 py-2 text-white transition-all",
         className,
       )}
-      disabled={isLoading || disabled}
       {...props}
     >
-      <span
-        className={cn(
-          "absolute inset-0 flex h-full w-full -translate-x-full items-center justify-center bg-white/10 transition-transform duration-300 group-hover:translate-x-0",
-          isLoading ? "translate-x-0" : "",
-        )}
-      />
-      <span className="relative flex items-center gap-2">
-        {isLoading && (
-          <svg
-            className="h-4 w-4 animate-spin"
-            xmlns="http://www.w3.org/2000/svg"
-            fill="none"
-            viewBox="0 0 24 24"
-          >
-            <circle
-              className="opacity-25"
-              cx="12"
-              cy="12"
-              r="10"
-              stroke="currentColor"
-              strokeWidth="4"
-            />
-            <path
-              className="opacity-75"
-              fill="currentColor"
-              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-            />
-          </svg>
-        )}
-        {isLoading ? loadingText : text}
+      <span className="relative z-10 flex items-center justify-center transition-all duration-300 group-hover:-translate-x-2">
+        {text}
       </span>
+      <span className="absolute right-1 z-10 translate-x-8 opacity-0 transition-all duration-300 group-hover:translate-x-0 group-hover:opacity-100">
+        <ArrowRight className="h-5 w-5" />
+      </span>
+      <div className="absolute left-0 top-0 h-full w-0 bg-primary transition-all duration-300 group-hover:w-full dark:bg-gray-800" />
     </button>
   );
-}
+});
+
+InteractiveHoverButton.displayName = "InteractiveHoverButton";
+
+export { InteractiveHoverButton };

@@ -31,20 +31,9 @@ export const users = createTable(
     id: text("id").primaryKey(), // Using Clerk's user ID
     email: text("email").notNull(),
     name: text("name").notNull(),
-    phoneNumber: text("phone_number"),
-    profilePicture: text("profile_picture_url"),
-    address: text("address"),
-    city: text("city"),
-    country: text("country"),
-    biography: text("biography"),
-    communicationPrefs: text("communication_preferences").default('{"email":true,"push":true}'),
-    privacySettings: text("privacy_settings").default('{"profile":"public","events":"private"}'),
-    tosAccepted: boolean("tos_accepted").default(false),
-    tosAcceptedAt: timestamp("tos_accepted_at", { withTimezone: true }),
     role: text("role", { enum: ["user", "organizer", "admin"] })
       .default("user")
       .notNull(),
-    lastLoginAt: timestamp("last_login_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true })
       .default(sql`CURRENT_TIMESTAMP`)
       .notNull(),
@@ -174,6 +163,22 @@ export const notifications = createTable(
   }),
 );
 
+// Posts table (keep this for compatibility with existing code)
+export const posts = createTable(
+  "post",
+  {
+    id: integer("id").primaryKey().generatedByDefaultAsIdentity(),
+    name: varchar("name", { length: 256 }),
+    createdAt: timestamp("createdAt", { withTimezone: true })
+      .default(sql`CURRENT_TIMESTAMP`)
+      .notNull(),
+    updatedAt: timestamp("updatedAt", { withTimezone: true }).$onUpdate(() => new Date()),
+  },
+  (example) => ({
+    nameIndex: index("name_idx").on(example.name),
+  }),
+);
+
 // Schema for inserting a user
 export const insertUserSchema = createInsertSchema(users);
 export const selectUserSchema = createSelectSchema(users);
@@ -194,6 +199,10 @@ export const selectTicketSchema = createSelectSchema(tickets);
 export const insertNotificationSchema = createInsertSchema(notifications);
 export const selectNotificationSchema = createSelectSchema(notifications);
 
+// Schema for inserting a post (keep this for compatibility)
+export const insertPostSchema = createInsertSchema(posts);
+export const selectPostSchema = createSelectSchema(posts);
+
 // Export the query builder
 export const queries = {
   users,
@@ -201,4 +210,5 @@ export const queries = {
   registrations,
   tickets,
   notifications,
+  posts,
 } as const;
