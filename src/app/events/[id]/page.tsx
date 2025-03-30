@@ -130,7 +130,14 @@ async function EventDetails({ id }: { id: number }) {
         </div>
 
         {/* Action Buttons */}
-        <EventActionButtons status={event.status} />
+        <EventActionButtons 
+          status={event.status}
+          eventId={event.id}
+          eventName={event.name}
+          generalPrice={event.generalTicketPrice}
+          vipPrice={event.vipTicketPrice}
+          vipPerks={event.vipPerks}
+        />
       </div>
     </div>
   );
