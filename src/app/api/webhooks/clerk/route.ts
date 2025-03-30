@@ -4,6 +4,7 @@ import { WebhookEvent } from '@clerk/nextjs/server';
 import { db } from '~/server/db';
 import { users } from '~/server/db/schema';
 import { eq } from 'drizzle-orm';
+import { syncUser } from '~/server/auth/sync-user';
 
 export async function POST(req: Request) {
   // Get the headers
@@ -42,56 +43,34 @@ export async function POST(req: Request) {
     });
   }
 
-  // Handle the webhook
   const eventType = evt.type;
-  console.log(`Webhook received: ${eventType}`);
+
+  console.log(`Webhook received! Event type: ${eventType}`);
 
   if (eventType === 'user.created' || eventType === 'user.updated') {
-    const { id, email_addresses, username, first_name, last_name } = evt.data;
-
-    // Get the primary email
-    const primaryEmail = email_addresses?.find(email => email.id === evt.data.primary_email_address_id)?.email_address;
-
     try {
-      // Upsert user in our database
-      await db
-        .insert(users)
-        .values({
-          id: id,
-          email: primaryEmail || '',
-          username: username || '',
-          firstName: first_name || '',
-          lastName: last_name || '',
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        })
-        .onConflictDoUpdate({
-          target: users.id,
-          set: {
-            email: primaryEmail || '',
-            username: username || '',
-            firstName: first_name || '',
-            lastName: last_name || '',
-            updatedAt: new Date(),
-          },
-        });
-
-      console.log(`User ${id} successfully synced to database`);
+      await syncUser(evt.data);
+      console.log(`User ${evt.data.id} synced successfully`);
     } catch (error) {
-      console.error('Error syncing user to database:', error);
+      console.error('Error syncing user:', error);
       return new Response('Error syncing user', { status: 500 });
     }
   }
 
   if (eventType === 'user.deleted') {
+    // Delete user from our database
+    const { id } = evt.data;
+
     try {
-      await db.delete(users).where(eq(users.id, evt.data.id));
-      console.log(`User ${evt.data.id} successfully deleted from database`);
+      await db.delete(users)
+        .where(eq(users.id, id));
+
+      console.log(`User deleted from database: ${id}`);
     } catch (error) {
       console.error('Error deleting user from database:', error);
       return new Response('Error deleting user', { status: 500 });
     }
   }
 
-  return new Response('Webhook processed successfully', { status: 200 });
+  return new Response('', { status: 200 });
 } 

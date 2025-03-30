@@ -15,6 +15,7 @@
     "db:start": "node scripts/start-db.mjs",
     "db:seed": "bun run scripts/seed-db.ts",
     "dev": "next dev --turbo",
+    "dev:webpack": "next dev",
     "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,mdx}\" --cache",
     "format:write": "prettier --write \"**/*.{ts,tsx,js,jsx,mdx}\" --cache",
     "lint": "next lint",
