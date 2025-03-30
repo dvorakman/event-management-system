@@ -2,6 +2,176 @@
 
 This is a [T3 Stack](https://create.t3.gg/) project built with Next.js, tRPC, Drizzle ORM, and PostgreSQL.
 
+## Features
+
+- User authentication with Clerk
+- Event creation and management
+- Ticket purchasing and management
+- Role-based access control (User/Organizer)
+- Real-time updates
+- Responsive design
+
+## Getting Started
+
+### Prerequisites
+
+- Node.js 18+ or Bun
+- PostgreSQL database
+- Clerk account
+- Stripe account (for payments)
+
+### Environment Variables
+
+Create a `.env` file in the root directory with the following variables:
+
+```env
+# Database
+DATABASE_URL="postgresql://user:password@localhost:5432/event_management"
+
+# Clerk
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=your_publishable_key
+CLERK_SECRET_KEY=your_secret_key
+CLERK_WEBHOOK_SECRET=your_webhook_secret # Only needed in production
+
+# Stripe
+STRIPE_SECRET_KEY=your_stripe_secret_key
+NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=your_stripe_publishable_key
+```
+
+### Installation
+
+1. Clone the repository:
+```bash
+git clone https://github.com/yourusername/event-management-system.git
+cd event-management-system
+```
+
+2. Install dependencies:
+```bash
+bun install
+# or
+npm install
+```
+
+3. Run database migrations:
+```bash
+bun run db:push
+# or
+npm run db:push
+```
+
+4. Start the development server:
+```bash
+bun dev
+# or
+npm run dev
+```
+
+## User Management and Synchronization
+
+The application uses a hybrid approach for managing user data between Clerk and our database:
+
+### Development Environment
+
+In development, user synchronization happens automatically on each authenticated request:
+
+- When a user signs in, their Clerk data is automatically synced to our database
+- User profile updates are reflected immediately
+- No webhook setup required for local development
+- Synchronization is handled by the `createTRPCContext` middleware
+
+```typescript
+// Development mode synchronization
+if (env.NODE_ENV === "development") {
+  const clerkUser = await currentUser();
+  if (clerkUser) {
+    const dbUser = await syncUser(clerkUser);
+    // ... use synchronized user data
+  }
+}
+```
+
+### Production Environment
+
+In production, user synchronization is handled through Clerk webhooks:
+
+1. Set up a webhook endpoint in your Clerk dashboard:
+   - URL: `https://your-domain.com/api/webhooks/clerk`
+   - Events: `user.created`, `user.updated`, `user.deleted`
+   - Add the webhook secret to your environment variables
+
+2. The webhook handler automatically:
+   - Creates new users when they sign up
+   - Updates user data when changed in Clerk
+   - Removes users when they're deleted from Clerk
+
+```typescript
+// Production webhook handling
+if (eventType === 'user.created' || eventType === 'user.updated') {
+  await syncUser(evt.data);
+}
+
+if (eventType === 'user.deleted') {
+  await db.delete(users).where(eq(users.id, id));
+}
+```
+
+### User Data Synchronization
+
+The following user data is synchronized between Clerk and our database:
+
+- User ID (from Clerk)
+- Email address
+- Full name (or username)
+- Profile image URL
+- Role (managed by our application)
+- Timestamps (created/updated)
+
+## Role Management
+
+Users can have one of the following roles:
+
+- `user`: Default role for new users
+- `organizer`: Can create and manage events
+- `admin`: Full system access
+
+Users can upgrade to organizer status through the application interface.
+
+## Development Notes
+
+### Database Migrations
+
+If you make changes to the database schema:
+
+1. Update the schema in `src/server/db/schema.ts`
+2. Run the migration command:
+```bash
+bun run db:push
+```
+
+### Troubleshooting
+
+If you encounter database synchronization issues:
+
+1. Check your database connection
+2. Ensure migrations are up to date
+3. Clear the database and rerun migrations:
+```bash
+bun run db:push --reset
+```
+
+## Contributing
+
+1. Fork the repository
+2. Create your feature branch
+3. Commit your changes
+4. Push to the branch
+5. Create a new Pull Request
+
+## License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
+
 ## Local Development Setup (Using Docker)
 
 This project uses Docker Compose for a consistent and simplified local development environment.

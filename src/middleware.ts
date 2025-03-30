@@ -82,9 +82,10 @@ export default clerkMiddleware({
 
 export const config = {
   matcher: [
-    "/((?!.*\\..*|_next).*)", // Don't run middleware on static files
-    "/",                       // Run middleware on index page
-    "/(api|trpc)(.*)",        // Run middleware on API routes
+    // Skip Next.js internals and all static files
+    '/((?!_next|.*\\.(?:jpg|png|gif|svg|ico)).*)',
+    // Always run for API routes
+    '/(api|trpc)(.*)',
   ],
     // Skip Next.js internals and all static files
     "/((?!_next|.*\\.(?:jpg|png|gif|svg|ico)).*)",
