@@ -28,12 +28,18 @@ export const createTable = pgTableCreator(
 export const users = createTable(
   "user",
   {
-    id: text("id").primaryKey(), // Using Clerk's user ID
+    id: text("id").primaryKey(), // Clerk's user ID
     email: text("email").notNull(),
-    name: text("name").notNull(),
+    firstName: text("first_name"),
+    lastName: text("last_name"),
+    username: text("username"),
+    profileImage: text("profile_image"),
     role: text("role", { enum: ["user", "organizer", "admin"] })
       .default("user")
       .notNull(),
+    externalId: text("external_id"),
+    metadata: text("metadata"), // JSON string for additional Clerk metadata
+    lastSignInAt: timestamp("last_sign_in_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true })
       .default(sql`CURRENT_TIMESTAMP`)
       .notNull(),
@@ -41,6 +47,7 @@ export const users = createTable(
   },
   (table) => ({
     emailIdx: index("email_idx").on(table.email),
+    usernameIdx: index("username_idx").on(table.username),
   }),
 );
 

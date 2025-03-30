@@ -22,7 +22,7 @@
     "preview": "next build && next start",
     "start": "next start",
     "typecheck": "tsc --noEmit",
-    "sync-users": "bun scripts/sync-users.ts"
+    "sync-users": "bun src/server/db/sync-users.ts"
   },
   "dependencies": {
     "@clerk/clerk-sdk-node": "^5.1.6",
