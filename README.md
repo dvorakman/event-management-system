@@ -290,6 +290,54 @@ The project supports two database environments:
      - "Column cannot be null": Data consistency issue
      - Database state issues: Try `db:migrate:fresh` to reset
 
+## User Management and Role Synchronization
+
+This project integrates with Clerk for user authentication and management. The system includes automatic user synchronization and role management based on organization memberships.
+
+### User Roles
+
+The system supports three user roles:
+- **Admin**: Users who are administrators in the development organization
+- **Organizer**: Users who are administrators in other organizations
+- **User**: Regular members and users without special privileges
+
+### User Synchronization
+
+The system automatically synchronizes user data from Clerk to the local database, including:
+- Basic user information (name, email, username)
+- Profile images
+- Organization memberships
+- Role assignments
+- Last sign-in timestamps
+- User metadata
+
+To run user synchronization:
+
+```bash
+# Sync users from Clerk to local database
+bun run sync-users
+```
+
+### Role Assignment Logic
+
+Roles are automatically assigned based on organization memberships:
+1. Users who are admins in the development organization receive the `admin` role
+2. Users who are admins in other organizations receive the `organizer` role
+3. All other users receive the `user` role
+
+### Environment Configuration
+
+To enable user synchronization, ensure these environment variables are set:
+```env
+CLERK_SECRET_KEY=your_clerk_secret_key
+```
+
+### Development Organization
+
+The development organization is identified by a specific organization ID in Clerk. This organization's administrators automatically receive admin privileges in the system.
+
+To modify the development organization ID, update the `DEV_ORG_ID` constant in `src/server/db/sync-users.ts`.
+
 ### Production Deployments
 
 1. **Vercel Deployment**

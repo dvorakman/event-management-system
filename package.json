@@ -22,7 +22,8 @@
     "preview": "next build && next start",
     "start": "next start",
     "typecheck": "tsc --noEmit",
-    "sync-users": "bun src/server/db/sync-users.ts"
+    "sync-users": "bun src/server/db/sync-users.ts",
+    "test:org-membership": "bun src/server/db/test-org-membership.ts"
   },
   "dependencies": {
     "@clerk/clerk-sdk-node": "^5.1.6",

@@ -2,52 +2,37 @@ import { db } from "./index";
 import { users } from "./schema";
 import { eq } from "drizzle-orm";
 import { config } from "dotenv";
-import { fileURLToPath } from 'url';
+import { createClerkClient } from '@clerk/clerk-sdk-node';
+import type { OrganizationMembership } from '@clerk/clerk-sdk-node';
 
 // Load environment variables from .env file
 config();
 
-const CLERK_API_URL = 'https://api.clerk.com/v1';
-const CLERK_SECRET_KEY = process.env.CLERK_SECRET_KEY;
-const EVENT_MANAGEMENT_ORG_ID = process.env.EVENT_MANAGEMENT_ORG_ID;
+const DEV_ORG_ID = "org_2uhiVWqO42Gg9QpwFMtarlywYwA";
+const clerk = createClerkClient({ secretKey: process.env.CLERK_SECRET_KEY });
 
-console.log('Using Clerk Secret Key:', CLERK_SECRET_KEY?.substring(0, 10) + '...');
+console.log('Using Clerk Secret Key:', process.env.CLERK_SECRET_KEY?.substring(0, 10) + '...');
 
 async function fetchUserOrganizations(userId: string) {
   console.log(`Fetching organization memberships for user ${userId}`);
-  console.log(`Using Clerk API URL: ${CLERK_API_URL}`);
-  console.log(`Using Clerk Secret Key: ${CLERK_SECRET_KEY?.substring(0, 10)}...`);
-
+  
   try {
-    const response = await fetch(
-      `${CLERK_API_URL}/users/${userId}/organization_memberships`,
-      {
-        headers: {
-          Authorization: `Bearer ${CLERK_SECRET_KEY}`,
-          'Content-Type': 'application/json',
-        },
-      }
+    const { data: memberships } = await clerk.users.getOrganizationMembershipList({
+      userId: userId
+    });
+
+    console.log(`Found ${memberships.length} organization memberships`);
+
+    // Find membership in the development organization
+    const devOrgMembership = memberships.find((m: OrganizationMembership) => 
+      m.organization.id === DEV_ORG_ID
     );
 
-    if (!response.ok) {
-      console.error(`Error fetching organization memberships: ${response.status}`);
-      console.error(`Response text: ${await response.text()}`);
-      return null;
-    }
-
-    const data = await response.json();
-    console.log(`Organization memberships response:`, JSON.stringify(data, null, 2));
-
-    // Find membership for EVENT_MANAGEMENT_ORG_ID
-    const membership = data.data?.find(
-      (m: any) => m.organization.id === EVENT_MANAGEMENT_ORG_ID
-    );
-
-    if (membership) {
-      console.log(`Found membership for organization ${EVENT_MANAGEMENT_ORG_ID}:`, membership);
-      return membership;
+    if (devOrgMembership) {
+      console.log(`Found membership in dev organization:`, devOrgMembership);
+      return devOrgMembership;
     } else {
-      console.log(`No membership found for organization ${EVENT_MANAGEMENT_ORG_ID}`);
+      console.log(`No membership found in dev organization`);
       return null;
     }
   } catch (error) {
@@ -56,7 +41,7 @@ async function fetchUserOrganizations(userId: string) {
   }
 }
 
-function determineUserRole(membership: any) {
+function determineUserRole(membership: OrganizationMembership | null) {
   if (!membership) {
     console.log('No membership found, defaulting to "user" role');
     return 'user';
@@ -65,13 +50,20 @@ function determineUserRole(membership: any) {
   console.log(`Determining role from membership:`, membership);
   const role = membership.role;
 
+  // If user is in dev organization and is an admin, they get admin role
+  if (membership.organization.id === DEV_ORG_ID && role === 'org:admin') {
+    console.log('User is a dev org admin - assigning admin role');
+    return 'admin';
+  }
+
+  // Otherwise map other roles
   switch (role) {
     case 'org:admin':
-      console.log('User is an admin');
-      return 'admin';
-    case 'org:member':
-      console.log('User is an organizer');
+      console.log('User is an organizer (org admin but not in dev org)');
       return 'organizer';
+    case 'org:member':
+      console.log('User is a regular member');
+      return 'user';
     default:
       console.log(`Unknown role "${role}", defaulting to "user"`);
       return 'user';
@@ -79,23 +71,14 @@ function determineUserRole(membership: any) {
 }
 
 async function fetchClerkUsers() {
-  console.log(`Using Clerk Secret Key: ${CLERK_SECRET_KEY?.substring(0, 10)}...`);
-  
-  const response = await fetch(`${CLERK_API_URL}/users`, {
-    headers: {
-      Authorization: `Bearer ${CLERK_SECRET_KEY}`,
-      "Content-Type": "application/json",
-    },
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Failed to fetch users from Clerk: ${errorText}`);
+  try {
+    const { data: users } = await clerk.users.getUserList();
+    console.log(`Found ${users.length} users in Clerk`);
+    return users;
+  } catch (error) {
+    console.error("Error fetching users from Clerk:", error);
+    throw error;
   }
-
-  const data = await response.json();
-  console.log("Raw Clerk response:", JSON.stringify(data, null, 2));
-  return data;
 }
 
 export async function syncExistingUsers() {
@@ -106,12 +89,12 @@ export async function syncExistingUsers() {
     console.log(`Found ${clerkUsers.length} users in Clerk`);
 
     for (const user of clerkUsers) {
-      console.log(`Processing user: ${user.id} (${user.email_addresses[0]?.email_address})`);
+      console.log(`Processing user: ${user.id} (${user.emailAddresses[0]?.emailAddress})`);
       console.log("User data:", JSON.stringify(user, null, 2));
 
       try {
         // Get the primary email
-        const primaryEmail = user.email_addresses[0]?.email_address;
+        const primaryEmail = user.emailAddresses[0]?.emailAddress;
         if (!primaryEmail) continue;
 
         // Fetch organization memberships and determine role
@@ -127,19 +110,19 @@ export async function syncExistingUsers() {
           await db.insert(users).values({
             id: user.id,
             email: primaryEmail,
-            firstName: user.first_name || null,
-            lastName: user.last_name || null,
+            firstName: user.firstName || null,
+            lastName: user.lastName || null,
             username: user.username || null,
-            profileImage: user.profile_image_url || null,
+            profileImage: user.imageUrl || null,
             role: role,
-            externalId: user.external_id || null,
+            externalId: user.externalId || null,
             metadata: JSON.stringify({
-              publicMetadata: user.public_metadata,
-              privateMetadata: user.private_metadata,
-              unsafeMetadata: user.unsafe_metadata,
+              publicMetadata: user.publicMetadata,
+              privateMetadata: user.privateMetadata,
+              unsafeMetadata: user.unsafeMetadata,
             }),
-            lastSignInAt: user.last_sign_in_at ? new Date(user.last_sign_in_at) : null,
-            createdAt: new Date(user.created_at),
+            lastSignInAt: user.lastSignInAt ? new Date(user.lastSignInAt) : null,
+            createdAt: new Date(user.createdAt),
             updatedAt: new Date(),
           });
           console.log(`Created new user: ${user.username || primaryEmail}`);
@@ -149,18 +132,18 @@ export async function syncExistingUsers() {
             .update(users)
             .set({
               email: primaryEmail,
-              firstName: user.first_name || null,
-              lastName: user.last_name || null,
+              firstName: user.firstName || null,
+              lastName: user.lastName || null,
               username: user.username || null,
-              profileImage: user.profile_image_url || null,
+              profileImage: user.imageUrl || null,
               role: role,
-              externalId: user.external_id || null,
+              externalId: user.externalId || null,
               metadata: JSON.stringify({
-                publicMetadata: user.public_metadata,
-                privateMetadata: user.private_metadata,
-                unsafeMetadata: user.unsafe_metadata,
+                publicMetadata: user.publicMetadata,
+                privateMetadata: user.privateMetadata,
+                unsafeMetadata: user.unsafeMetadata,
               }),
-              lastSignInAt: user.last_sign_in_at ? new Date(user.last_sign_in_at) : null,
+              lastSignInAt: user.lastSignInAt ? new Date(user.lastSignInAt) : null,
               updatedAt: new Date(),
             })
             .where(eq(users.id, user.id));
