@@ -197,6 +197,80 @@ function EventsList() {
     });
   };
 
+  // No events found state
+  if (!isLoading && (!eventsData || eventsData.items.length === 0)) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <h1 className="mb-8 text-3xl font-bold">Events</h1>
+
+        {/* Filter Section */}
+        <div className="mb-8 rounded-lg bg-white p-6 shadow-md dark:bg-gray-800">
+          <h2 className="mb-4 text-xl font-semibold">Filter Events</h2>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
+            <div>
+              <Label htmlFor="search">Search</Label>
+              <Input
+                id="search"
+                placeholder="Search events..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+            </div>
+            <div>
+              <Label htmlFor="type">Event Type</Label>
+              <Select value={type} onValueChange={setType}>
+                <SelectTrigger id="type">
+                  <SelectValue placeholder="All types" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All types</SelectItem>
+                  <SelectItem value="conference">Conference</SelectItem>
+                  <SelectItem value="concert">Concert</SelectItem>
+                  <SelectItem value="workshop">Workshop</SelectItem>
+                  <SelectItem value="networking">Networking</SelectItem>
+                  <SelectItem value="other">Other</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor="priceMin">Min Price</Label>
+              <Input
+                id="priceMin"
+                type="number"
+                placeholder="Min price"
+                value={priceMin}
+                onChange={(e) => setPriceMin(e.target.value)}
+              />
+            </div>
+            <div>
+              <Label htmlFor="priceMax">Max Price</Label>
+              <Input
+                id="priceMax"
+                type="number"
+                placeholder="Max price"
+                value={priceMax}
+                onChange={(e) => setPriceMax(e.target.value)}
+              />
+            </div>
+          </div>
+          <div className="mt-4 flex gap-2">
+            <Button onClick={applyFilters}>Apply Filters</Button>
+            <Button variant="outline" onClick={clearFilters}>
+              Clear Filters
+            </Button>
+          </div>
+        </div>
+
+        <div className="rounded-lg bg-white p-8 text-center shadow-md dark:bg-gray-800">
+          <h2 className="text-xl font-semibold">No events found</h2>
+          <p className="mt-2 text-gray-600 dark:text-gray-400">
+            Try adjusting your filters or check back later for upcoming events.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="container mx-auto px-4 py-8">
       <h1 className="mb-8 text-3xl font-bold">Events</h1>
