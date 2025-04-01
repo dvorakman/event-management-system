@@ -2,25 +2,23 @@ import Link from "next/link";
 import { SignedIn, SignedOut, SignInButton } from "@clerk/nextjs";
 
 import { HydrateClient } from "~/trpc/server";
-import { InteractiveHoverButton } from "~/components/ui/interactive-hover-button";
-import { Globe } from "~/components/ui/globe";
+import { Button } from "~/components/ui/button";
+// import { InteractiveHoverButton } from "~/components/ui/interactive-hover-button";
+// import { Globe } from "~/components/ui/globe";
 import { BackgroundGradient } from "~/components/ui/background-gradient";
-import { BackgroundBoxes } from "~/components/ui/background-boxes";
+// import { BackgroundBoxes } from "~/components/ui/background-boxes";
 
 export default async function Home() {
   return (
     <HydrateClient>
       <div className="flex flex-col">
-        {/* Hero Section with Globe */}
-        <div className="relative min-h-[550px]">
-          <BackgroundBoxes 
-            className="fixed inset-0 z-0"
-          />
+        {/* Hero Section */}
+        <div className="relative min-h-[550px] bg-gradient-to-br from-blue-900 to-indigo-900">
           
-          <div className="relative z-10 container mx-auto px-4 sm:px-6 lg:px-8 pointer-events-none">
+          <div className="relative z-10 container mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex min-h-[550px] flex-col items-center justify-between gap-8 py-10 md:flex-row md:gap-12 md:py-20">
               {/* Text content */}
-              <div className="flex flex-col justify-center space-y-6 text-center md:w-2/5 md:text-left pointer-events-auto">
+              <div className="flex flex-col justify-center space-y-6 text-center md:w-2/3 md:text-left">
                 <h1 className="text-4xl font-extrabold tracking-tight text-white sm:text-5xl md:text-6xl">
                   Find and Manage Events
                 </h1>
@@ -29,36 +27,37 @@ export default async function Home() {
                   platform makes event management simple and enjoyable.
                 </p>
                 <div className="mt-8 flex flex-col space-y-4 sm:flex-row sm:space-x-4 sm:space-y-0">
-                  <Link href="/events" className="inline-block pointer-events-auto">
-                    <InteractiveHoverButton
-                      text="Browse Events"
-                      className="w-auto bg-white text-blue-700 shadow-lg hover:bg-gray-100"
-                    />
+                  <Link href="/events">
+                    <Button
+                      variant="secondary"
+                      size="lg"
+                      className="w-full sm:w-auto"
+                    >
+                      Browse Events
+                    </Button>
                   </Link>
                   <SignedOut>
                     <SignInButton mode="modal">
-                      <InteractiveHoverButton
-                        type="button"
-                        text="Sign Up to Organize"
-                        className="w-auto bg-blue-500 text-white shadow-lg hover:bg-blue-400"
-                      />
+                      <Button
+                        variant="default"
+                        size="lg"
+                        className="w-full sm:w-auto"
+                      >
+                        Sign Up to Organize
+                      </Button>
                     </SignInButton>
                   </SignedOut>
                   <SignedIn>
-                    <Link href="/organizer/dashboard" className="inline-block">
-                      <InteractiveHoverButton
-                        text="Organizer Dashboard"
-                        className="w-auto bg-blue-500 text-white shadow-lg hover:bg-blue-400"
-                      />
+                    <Link href="/organizer/dashboard">
+                      <Button
+                        variant="default"
+                        size="lg"
+                        className="w-full sm:w-auto"
+                      >
+                        Organizer Dashboard
+                      </Button>
                     </Link>
                   </SignedIn>
-                </div>
-              </div>
-
-              {/* Globe component */}
-              <div className="relative flex h-[400px] w-full md:absolute md:right-0 md:mr-4 md:h-[600px] md:w-[45%] lg:mr-5 pointer-events-auto">
-                <div className="h-full w-full">
-                  <Globe />
                 </div>
               </div>
             </div>
@@ -133,11 +132,8 @@ export default async function Home() {
                         </p>
                       </div>
                       <div className="mt-6">
-                        <Link href={`/events/${i}`} className="inline-block">
-                          <InteractiveHoverButton
-                            text="View Details"
-                            className="w-auto bg-blue-600 text-white hover:bg-blue-700"
-                          />
+                        <Link href={`/events/${i}`}>
+                          <Button>View Details</Button>
                         </Link>
                       </div>
                     </div>
@@ -146,11 +142,8 @@ export default async function Home() {
               ))}
             </div>
             <div className="mt-12 text-center">
-              <Link href="/events" className="inline-block">
-                <InteractiveHoverButton
-                  text="View All Events"
-                  className="w-auto border border-blue-600 bg-transparent text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900"
-                />
+              <Link href="/events">
+                <Button variant="outline">View All Events</Button>
               </Link>
             </div>
           </div>

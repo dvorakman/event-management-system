@@ -41,12 +41,14 @@ NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=your_stripe_publishable_key
 ### Installation
 
 1. Clone the repository:
+
 ```bash
 git clone https://github.com/yourusername/event-management-system.git
 cd event-management-system
 ```
 
 2. Install dependencies:
+
 ```bash
 bun install
 # or
@@ -54,6 +56,7 @@ npm install
 ```
 
 3. Run database migrations:
+
 ```bash
 bun run db:push
 # or
@@ -61,6 +64,7 @@ npm run db:push
 ```
 
 4. Start the development server:
+
 ```bash
 bun dev
 # or
@@ -96,6 +100,7 @@ if (env.NODE_ENV === "development") {
 In production, user synchronization is handled through Clerk webhooks:
 
 1. Set up a webhook endpoint in your Clerk dashboard:
+
    - URL: `https://your-domain.com/api/webhooks/clerk`
    - Events: `user.created`, `user.updated`, `user.deleted`
    - Add the webhook secret to your environment variables
@@ -107,11 +112,11 @@ In production, user synchronization is handled through Clerk webhooks:
 
 ```typescript
 // Production webhook handling
-if (eventType === 'user.created' || eventType === 'user.updated') {
+if (eventType === "user.created" || eventType === "user.updated") {
   await syncUser(evt.data);
 }
 
-if (eventType === 'user.deleted') {
+if (eventType === "user.deleted") {
   await db.delete(users).where(eq(users.id, id));
 }
 ```
@@ -145,6 +150,7 @@ If you make changes to the database schema:
 
 1. Update the schema in `src/server/db/schema.ts`
 2. Run the migration command:
+
 ```bash
 bun run db:push
 ```
@@ -156,8 +162,30 @@ If you encounter database synchronization issues:
 1. Check your database connection
 2. Ensure migrations are up to date
 3. Clear the database and rerun migrations:
+
 ```bash
 bun run db:push --reset
+```
+
+### UI Component Issues
+
+#### Select Component
+
+- The Select component from the UI library requires that each `<SelectItem>` has a non-empty string value prop.
+- For "All types" or similar default options, use a meaningful string (e.g., "all") instead of an empty string.
+- When using such components with filters, make sure to handle these default values in your filter logic.
+
+Example fix:
+
+```tsx
+// Instead of this (causes error):
+<SelectItem value="">All types</SelectItem>
+
+// Use this:
+<SelectItem value="all">All types</SelectItem>
+
+// And handle in your filter logic:
+if (type && type !== "all") params.set("type", type);
 ```
 
 ## Contributing
@@ -261,10 +289,11 @@ For more details, see [Preview Deployments Documentation](./docs/PREVIEW_DEPLOYM
    - If connection fails, try stopping any existing containers and starting again
 
 5. **Generate and run migrations**
+
    ```bash
    # Generate migrations based on your schema
    bun run db:generate
-   
+
    # Apply migrations to the database
    bun run db:migrate
    ```
@@ -428,23 +457,25 @@ The project supports two database environments:
 3. **Database Reset**
 
    The `db:migrate:fresh` command provides a way to completely reset your database and start fresh:
-   
+
    ```bash
    bun run db:migrate:fresh
    ```
-   
+
    This command:
+
    - Drops the entire public schema
    - Creates a new public schema
    - Runs all migrations from scratch
    - Works with both local PostgreSQL and Neon databases
-   
+
    Use this when:
+
    - You need a clean database state
    - You're experiencing migration conflicts
    - You want to reset development data
    - Testing deployment scenarios
-   
+
    ⚠️ **Warning**: This command will delete all data in the database. Only use it in development or when you're sure you want to start fresh.
 
 4. **Troubleshooting Migrations**

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { and, eq, gt } from "drizzle-orm";
+import { and, eq, gt, gte, lte, like, or } from "drizzle-orm";
 import { createTRPCRouter, publicProcedure, protectedProcedure } from "~/server/api/trpc";
 import { events, registrations, tickets } from "~/server/db/schema";
 import { nanoid } from "nanoid";
@@ -24,6 +24,9 @@ export const eventRouter = createTRPCRouter({
           status: z
             .enum(["published", "draft", "cancelled", "completed"])
             .optional(),
+          search: z.string().optional(), // Search by name, description, or location
+          minPrice: z.number().optional(), // Minimum price filter
+          maxPrice: z.number().optional(), // Maximum price filter
         })
         .optional(),
     )
@@ -41,6 +44,27 @@ export const eventRouter = createTRPCRouter({
         conditions.push(eq(events.status, input.status));
       } else {
         conditions.push(eq(events.status, "published"));
+      }
+
+      // Apply search filter (case-insensitive search across multiple fields)
+      if (input?.search) {
+        const searchTerm = `%${input.search}%`;
+        conditions.push(
+          or(
+            like(events.name, searchTerm),
+            like(events.description, searchTerm),
+            like(events.location, searchTerm)
+          )
+        );
+      }
+
+      // Apply price range filters
+      if (input?.minPrice !== undefined) {
+        conditions.push(gte(events.generalTicketPrice, input.minPrice));
+      }
+      
+      if (input?.maxPrice !== undefined) {
+        conditions.push(lte(events.generalTicketPrice, input.maxPrice));
       }
 
       // Apply cursor-based pagination
