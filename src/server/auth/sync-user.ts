@@ -1,7 +1,12 @@
 import { type User } from "@clerk/nextjs/server";
+import { createClerkClient } from "@clerk/clerk-sdk-node";
 import { db } from "~/server/db";
 import { users } from "~/server/db/schema";
 import { eq } from "drizzle-orm";
+import type { UserRole } from "~/server/db/schema";
+
+// Create a Clerk client instance
+const clerk = createClerkClient({ secretKey: process.env.CLERK_SECRET_KEY });
 
 export async function syncUser(clerkUser: User) {
   const email = clerkUser.emailAddresses[0]?.emailAddress ?? "";
@@ -23,6 +28,9 @@ export async function syncUser(clerkUser: User) {
       where: eq(users.id, clerkUser.id),
     });
 
+    // Define the return type explicitly to avoid any type
+    let dbUser: { id: string; role: UserRole } | undefined;
+
     if (existingUser) {
       // Update existing user
       const [updatedUser] = await db
@@ -30,21 +38,42 @@ export async function syncUser(clerkUser: User) {
         .set(userData)
         .where(eq(users.id, clerkUser.id))
         .returning();
-      return updatedUser;
+      dbUser = updatedUser;
     } else {
       // Create new user
       const [newUser] = await db
         .insert(users)
         .values({
           ...userData,
-          role: "user",
+          role: "user", // Default role for new users
           createdAt: new Date(),
         })
         .returning();
-      return newUser;
+      dbUser = newUser;
     }
+
+    // Sync the user's role to Clerk's publicMetadata
+    if (dbUser) {
+      // Only update if the role in Clerk metadata doesn't match our DB
+      const clerkRole = (clerkUser.publicMetadata?.role as string) || "";
+      if (clerkRole !== dbUser.role) {
+        try {
+          await clerk.users.updateUser(clerkUser.id, {
+            publicMetadata: {
+              ...clerkUser.publicMetadata,
+              role: dbUser.role,
+            },
+          });
+          console.log(`Updated Clerk metadata with role: ${dbUser.role}`);
+        } catch (error) {
+          console.error("Error updating Clerk metadata:", error);
+        }
+      }
+    }
+
+    return dbUser;
   } catch (error) {
     console.error("Error syncing user:", error);
     throw error;
   }
-} 
+}

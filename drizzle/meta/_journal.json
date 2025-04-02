@@ -15,6 +15,13 @@
       "when": 1743298430719,
       "tag": "0001_needy_morlocks",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1743565710354,
+      "tag": "0002_bouncy_blue_marvel",
+      "breakpoints": true
     }
   ]
 }

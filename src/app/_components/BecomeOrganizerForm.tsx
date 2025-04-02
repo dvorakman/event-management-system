@@ -1,10 +1,12 @@
+"use client";
+
 import { useState } from "react";
 import { api } from "~/trpc/react";
 import { useRouter } from "next/navigation";
-import { Button } from "./ui/button";
-import { Input } from "./ui/input";
-import { Label } from "./ui/label";
-import { useToast } from "./ui/use-toast";
+import { Button } from "~/components/ui/button";
+import { Input } from "~/components/ui/input";
+import { Label } from "~/components/ui/label";
+import { useToast } from "~/hooks/use-toast";
 
 export function BecomeOrganizerForm() {
   const router = useRouter();
@@ -84,9 +86,9 @@ export function BecomeOrganizerForm() {
       </Button>
 
       <p className="text-sm text-gray-500">
-        By becoming an organizer, you'll be able to create and manage events on our
-        platform.
+        By becoming an organizer, you&apos;ll be able to create and manage
+        events on our platform.
       </p>
     </form>
   );
-} 
+}

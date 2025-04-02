@@ -32,21 +32,21 @@ import { env } from "~/env";
 export const createTRPCContext = async (opts: { headers: Headers }) => {
   // Get auth info from headers directly
   const authHeader = opts.headers.get("authorization");
-  console.log("[TRPC Context] Auth header:", { 
+  console.log("[TRPC Context] Auth header:", {
     hasAuthHeader: !!authHeader,
-    authHeader: authHeader ? `${authHeader.substring(0, 15)}...` : null
+    authHeader: authHeader ? `${authHeader.substring(0, 15)}...` : null,
   });
 
   // Try both methods to get the user ID
   const { userId: authUserId } = auth();
-  
-  console.log("[TRPC Context] Auth state:", { 
+
+  console.log("[TRPC Context] Auth state:", {
     userId: authUserId,
     hasHeaders: !!opts.headers,
   });
-  
+
   const userId = authUserId;
-  
+
   // If there's no userId, return minimal context
   if (!userId) {
     console.log("[TRPC Context] No userId found");
@@ -58,7 +58,7 @@ export const createTRPCContext = async (opts: { headers: Headers }) => {
 
   // Get the current user from Clerk
   const clerkUser = await currentUser();
-  console.log("[TRPC Context] Clerk user:", { 
+  console.log("[TRPC Context] Clerk user:", {
     id: clerkUser?.id,
     email: clerkUser?.emailAddresses?.[0]?.emailAddress,
   });
@@ -78,8 +78,12 @@ export const createTRPCContext = async (opts: { headers: Headers }) => {
   });
   console.log("[TRPC Context] DB user:", { id: dbUser?.id });
 
-  const isDevelopment = !process.env.VERCEL_ENV || process.env.VERCEL_ENV !== "production";
-  console.log("[TRPC Context] Environment:", { isDevelopment, VERCEL_ENV: process.env.VERCEL_ENV });
+  const isDevelopment =
+    !process.env.VERCEL_ENV || process.env.VERCEL_ENV !== "production";
+  console.log("[TRPC Context] Environment:", {
+    isDevelopment,
+    VERCEL_ENV: process.env.VERCEL_ENV,
+  });
 
   if (!dbUser || isDevelopment) {
     console.log("[TRPC Context] Syncing user from Clerk");
@@ -151,7 +155,8 @@ export const createTRPCRouter = t.router;
 const timingMiddleware = t.middleware(async ({ next, path }) => {
   const start = Date.now();
 
-  const isDevelopment = !process.env.VERCEL_ENV || process.env.VERCEL_ENV !== "production";
+  const isDevelopment =
+    !process.env.VERCEL_ENV || process.env.VERCEL_ENV !== "production";
   if (isDevelopment) {
     // artificial delay in dev
     const waitMs = Math.floor(Math.random() * 400) + 100;
@@ -184,7 +189,7 @@ export const publicProcedure = t.procedure.use(timingMiddleware);
 export const protectedProcedure = t.procedure
   .use(timingMiddleware)
   .use(async ({ ctx, next }) => {
-    console.log("[TRPC Protected] Context:", { 
+    console.log("[TRPC Protected] Context:", {
       userId: ctx.userId,
       hasDbUser: !!ctx.dbUser,
     });
@@ -203,7 +208,9 @@ export const protectedProcedure = t.procedure
       const clerkUser = await currentUser();
       if (clerkUser) {
         ctx.dbUser = await syncUser(clerkUser);
-        console.log("[TRPC Protected] Synced user from Clerk:", { id: ctx.dbUser.id });
+        console.log("[TRPC Protected] Synced user from Clerk:", {
+          id: ctx.dbUser.id,
+        });
       } else {
         console.log("[TRPC Protected] Unable to find Clerk user");
         throw new TRPCError({

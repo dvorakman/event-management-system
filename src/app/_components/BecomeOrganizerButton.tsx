@@ -1,12 +1,12 @@
 import Link from "next/link";
-import { Button } from "./ui/button";
+import { Button } from "~/components/ui/button";
 import { api } from "~/trpc/react";
 
 export function BecomeOrganizerButton() {
   const { data: user, isLoading } = api.user.getCurrentUser.useQuery();
 
   if (isLoading) return null;
-  
+
   // Don't show the button if user is already an organizer or admin
   if (!user || user.role === "organizer" || user.role === "admin") {
     return null;
@@ -20,6 +20,8 @@ export function BecomeOrganizerButton() {
           viewBox="0 0 20 20"
           fill="currentColor"
           className="h-5 w-5"
+          aria-hidden="true"
+          role="img"
         >
           <path d="M10 12.5a2.5 2.5 0 100-5 2.5 2.5 0 000 5z" />
           <path
@@ -32,4 +34,4 @@ export function BecomeOrganizerButton() {
       </Link>
     </Button>
   );
-} 
+}

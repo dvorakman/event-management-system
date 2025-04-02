@@ -2,8 +2,8 @@ import { db } from "./index";
 import { users } from "./schema";
 import { eq } from "drizzle-orm";
 import { config } from "dotenv";
-import { createClerkClient } from '@clerk/clerk-sdk-node';
-import type { OrganizationMembership } from '@clerk/clerk-sdk-node';
+import { createClerkClient } from "@clerk/clerk-sdk-node";
+import type { OrganizationMembership } from "@clerk/clerk-sdk-node";
 
 // Load environment variables from .env file
 config();
@@ -11,21 +11,25 @@ config();
 const DEV_ORG_ID = "org_2uhiVWqO42Gg9QpwFMtarlywYwA";
 const clerk = createClerkClient({ secretKey: process.env.CLERK_SECRET_KEY });
 
-console.log('Using Clerk Secret Key:', process.env.CLERK_SECRET_KEY?.substring(0, 10) + '...');
+console.log(
+  "Using Clerk Secret Key:",
+  process.env.CLERK_SECRET_KEY?.substring(0, 10) + "...",
+);
 
 async function fetchUserOrganizations(userId: string) {
   console.log(`Fetching organization memberships for user ${userId}`);
-  
+
   try {
-    const { data: memberships } = await clerk.users.getOrganizationMembershipList({
-      userId: userId
-    });
+    const { data: memberships } =
+      await clerk.users.getOrganizationMembershipList({
+        userId: userId,
+      });
 
     console.log(`Found ${memberships.length} organization memberships`);
 
     // Find membership in the development organization
-    const devOrgMembership = memberships.find((m: OrganizationMembership) => 
-      m.organization.id === DEV_ORG_ID
+    const devOrgMembership = memberships.find(
+      (m: OrganizationMembership) => m.organization.id === DEV_ORG_ID,
     );
 
     if (devOrgMembership) {
@@ -36,37 +40,49 @@ async function fetchUserOrganizations(userId: string) {
       return null;
     }
   } catch (error) {
-    console.error('Error fetching organization memberships:', error);
+    console.error("Error fetching organization memberships:", error);
     return null;
   }
 }
 
 function determineUserRole(membership: OrganizationMembership | null) {
+  // Always default to "user" role for new accounts in development mode
+  // unless explicitly being assigned a different role through proper channels
+  if (
+    process.env.NODE_ENV === "development" &&
+    process.env.DISABLE_DEV_ROLES === "true"
+  ) {
+    console.log(
+      'Development mode with DISABLE_DEV_ROLES enabled, defaulting to "user" role',
+    );
+    return "user";
+  }
+
   if (!membership) {
     console.log('No membership found, defaulting to "user" role');
-    return 'user';
+    return "user";
   }
 
   console.log(`Determining role from membership:`, membership);
   const role = membership.role;
 
   // If user is in dev organization and is an admin, they get admin role
-  if (membership.organization.id === DEV_ORG_ID && role === 'org:admin') {
-    console.log('User is a dev org admin - assigning admin role');
-    return 'admin';
+  if (membership.organization.id === DEV_ORG_ID && role === "org:admin") {
+    console.log("User is a dev org admin - assigning admin role");
+    return "admin";
   }
 
   // Otherwise map other roles
   switch (role) {
-    case 'org:admin':
-      console.log('User is an organizer (org admin but not in dev org)');
-      return 'organizer';
-    case 'org:member':
-      console.log('User is a regular member');
-      return 'user';
+    case "org:admin":
+      console.log("User is an organizer (org admin but not in dev org)");
+      return "organizer";
+    case "org:member":
+      console.log("User is a regular member");
+      return "user";
     default:
       console.log(`Unknown role "${role}", defaulting to "user"`);
-      return 'user';
+      return "user";
   }
 }
 
@@ -83,13 +99,15 @@ async function fetchClerkUsers() {
 
 export async function syncExistingUsers() {
   console.log("Starting user synchronization...");
-  
+
   try {
     const clerkUsers = await fetchClerkUsers();
     console.log(`Found ${clerkUsers.length} users in Clerk`);
 
     for (const user of clerkUsers) {
-      console.log(`Processing user: ${user.id} (${user.emailAddresses[0]?.emailAddress})`);
+      console.log(
+        `Processing user: ${user.id} (${user.emailAddresses[0]?.emailAddress})`,
+      );
       console.log("User data:", JSON.stringify(user, null, 2));
 
       try {
@@ -103,7 +121,10 @@ export async function syncExistingUsers() {
         console.log(`Determined role for user ${user.id}: ${role}`);
 
         // Check if user already exists
-        const existingUser = await db.select().from(users).where(eq(users.id, user.id));
+        const existingUser = await db
+          .select()
+          .from(users)
+          .where(eq(users.id, user.id));
 
         if (existingUser.length === 0) {
           // Create new user
@@ -121,7 +142,9 @@ export async function syncExistingUsers() {
               privateMetadata: user.privateMetadata,
               unsafeMetadata: user.unsafeMetadata,
             }),
-            lastSignInAt: user.lastSignInAt ? new Date(user.lastSignInAt) : null,
+            lastSignInAt: user.lastSignInAt
+              ? new Date(user.lastSignInAt)
+              : null,
             createdAt: new Date(user.createdAt),
             updatedAt: new Date(),
           });
@@ -143,11 +166,15 @@ export async function syncExistingUsers() {
                 privateMetadata: user.privateMetadata,
                 unsafeMetadata: user.unsafeMetadata,
               }),
-              lastSignInAt: user.lastSignInAt ? new Date(user.lastSignInAt) : null,
+              lastSignInAt: user.lastSignInAt
+                ? new Date(user.lastSignInAt)
+                : null,
               updatedAt: new Date(),
             })
             .where(eq(users.id, user.id));
-          console.log(`Updated existing user: ${user.username || primaryEmail}`);
+          console.log(
+            `Updated existing user: ${user.username || primaryEmail}`,
+          );
         }
       } catch (error) {
         console.error(`Error syncing user ${user.id}:`, error);
@@ -173,7 +200,7 @@ export async function syncUsers() {
 }
 
 // Execute if this file is run directly
-if (import.meta.url.endsWith('sync-users.ts')) {
+if (import.meta.url.endsWith("sync-users.ts")) {
   console.log("Running user synchronization...");
   syncUsers()
     .then((success) => {
@@ -189,4 +216,4 @@ if (import.meta.url.endsWith('sync-users.ts')) {
       console.error("Failed to sync users:", error);
       process.exit(1);
     });
-} 
+}

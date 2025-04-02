@@ -25,21 +25,24 @@ export const api = createTRPCReact<AppRouter>({
   // Override this method to add a callback for when mutations are created
   createContext: (opts) => {
     const originalCreateMutation = opts.createMutation;
-    
+
     opts.createMutation = (props) => {
       // Log which mutations are being created and where
-      const procedurePath = Array.isArray(props.path) ? props.path.join('.') : props.path;
-      
+      const procedurePath = Array.isArray(props.path)
+        ? props.path.join(".")
+        : props.path;
+
       // Only log the payment verification mutation to avoid noise
-      if (procedurePath === 'event.verifyPaymentAndCreateTicket') {
-        console.log(`[TRPC] Creating mutation: ${procedurePath}`, { 
-          url: typeof window !== 'undefined' ? window.location.pathname : 'server'
+      if (procedurePath === "event.verifyPaymentAndCreateTicket") {
+        console.log(`[TRPC] Creating mutation: ${procedurePath}`, {
+          url:
+            typeof window !== "undefined" ? window.location.pathname : "server",
         });
       }
-      
+
       return originalCreateMutation(props);
     };
-    
+
     return opts;
   },
 });
@@ -73,10 +76,10 @@ export function TRPCReactProvider(props: { children: React.ReactNode }) {
             if (process.env.NODE_ENV === "development") {
               // Only log specific operations to reduce noise
               if (op.path === "event.verifyPaymentAndCreateTicket") {
-                console.log(`[TRPC] Operation ${op.direction} - ${op.path}`, { 
+                console.log(`[TRPC] Operation ${op.direction} - ${op.path}`, {
                   type: op.type,
                   context: op.context,
-                  path: op.path
+                  path: op.path,
                 });
               }
               return true;
@@ -105,10 +108,14 @@ export function TRPCReactProvider(props: { children: React.ReactNode }) {
             return headers;
           },
           fetch: (url, options) => {
-            console.log("[TRPCProvider] Fetching:", { 
-              url, 
-              hasAuth: options?.headers && ("Authorization" in Object.fromEntries(new Headers(options.headers).entries())),
-              path: typeof window !== 'undefined' ? window.location.pathname : null
+            console.log("[TRPCProvider] Fetching:", {
+              url,
+              hasAuth:
+                options?.headers &&
+                "Authorization" in
+                  Object.fromEntries(new Headers(options.headers).entries()),
+              path:
+                typeof window !== "undefined" ? window.location.pathname : null,
             });
             return fetch(url, {
               ...options,
@@ -117,7 +124,7 @@ export function TRPCReactProvider(props: { children: React.ReactNode }) {
           },
         }),
       ],
-    })
+    }),
   );
 
   return (

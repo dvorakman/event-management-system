@@ -14,8 +14,7 @@ export default async function Home() {
       <div className="flex flex-col">
         {/* Hero Section */}
         <div className="relative min-h-[550px] bg-gradient-to-br from-blue-900 to-indigo-900">
-          
-          <div className="relative z-10 container mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="container relative z-10 mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex min-h-[550px] flex-col items-center justify-between gap-8 py-10 md:flex-row md:gap-12 md:py-20">
               {/* Text content */}
               <div className="flex flex-col justify-center space-y-6 text-center md:w-2/3 md:text-left">
@@ -48,13 +47,22 @@ export default async function Home() {
                     </SignInButton>
                   </SignedOut>
                   <SignedIn>
-                    <Link href="/organizer/dashboard">
+                    <Link href="/dashboard">
                       <Button
                         variant="default"
                         size="lg"
                         className="w-full sm:w-auto"
                       >
-                        Organizer Dashboard
+                        Go to Dashboard
+                      </Button>
+                    </Link>
+                    <Link href="/become-organizer">
+                      <Button
+                        variant="outline"
+                        size="lg"
+                        className="w-full sm:w-auto"
+                      >
+                        Become an Organizer
                       </Button>
                     </Link>
                   </SignedIn>
