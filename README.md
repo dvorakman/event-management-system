@@ -1,41 +1,64 @@
 # Event Management System
 
-This is a [T3 Stack](https://create.t3.gg/) project built with Next.js, tRPC, Drizzle ORM, and PostgreSQL.
+A full-stack event management application built with Next.js, tRPC, PostgreSQL, and Clerk authentication. This platform allows users to discover events, register for tickets, and organizers to create and manage events.
 
 ## Features
 
-- User authentication with Clerk
-- Event creation and management
-- Ticket purchasing and management
-- Role-based access control (User/Organizer)
-- Real-time updates
-- Responsive design
+### For Attendees
+
+- Browse and search events by type, date, location, and price
+- Register for events with general or VIP ticket options
+- Simulate payments for ticket purchases
+- View digital tickets with QR codes
+- Receive notifications for event updates and confirmations
+
+### For Organizers
+
+- Create and manage events with detailed information
+- Track attendee registrations and sales statistics
+- Send notifications to registered attendees
+- Cancel events with automatic refund simulation
+- View analytics on event performance
+
+## Tech Stack
+
+- **Frontend**: Next.js, React, Tailwind CSS, shadcn/ui
+- **Backend**: tRPC, Node.js
+- **Database**: PostgreSQL with Drizzle ORM
+- **Authentication**: Clerk
+- **Testing**: Cypress
+- **Payment Processing**: Stripe (simulation)
+- **Deployment**: Vercel (suggested)
 
 ## Getting Started
 
 ### Prerequisites
 
-- Node.js 18+ or Bun
+- Node.js (v18 or newer)
+- Bun (v1.0 or newer)
 - PostgreSQL database
-- Clerk account
-- Stripe account (for payments)
+- Clerk account for authentication
+- Stripe account for payment simulation
 
-### Environment Variables
+### Environment Setup
 
 Create a `.env` file in the root directory with the following variables:
 
-```env
+```bash
 # Database
-DATABASE_URL="postgresql://user:password@localhost:5432/event_management"
+DATABASE_URL="postgresql://username:password@localhost:5432/event_management"
+NEON_DATABASE_URL="postgresql://username:password@db.neon.tech/event_management" # If using Neon
 
-# Clerk
-NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=your_publishable_key
-CLERK_SECRET_KEY=your_secret_key
-CLERK_WEBHOOK_SECRET=your_webhook_secret # Only needed in production
+# Clerk Auth
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_...
+CLERK_SECRET_KEY=sk_test_...
 
 # Stripe
-STRIPE_SECRET_KEY=your_stripe_secret_key
-NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=your_stripe_publishable_key
+STRIPE_SECRET_KEY=sk_test_...
+NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_test_...
+
+# App
+NEXT_PUBLIC_APP_URL=http://localhost:3000
 ```
 
 ### Installation
@@ -49,46 +72,30 @@ cd event-management-system
 2. Install dependencies:
 ```bash
 bun install
-# or
-npm install
 ```
 
 3. Run database migrations:
 ```bash
-bun run db:push
-# or
-npm run db:push
+bun db:generate-test-data
 ```
 
 4. Start the development server:
 ```bash
 bun dev
-# or
-npm run dev
 ```
 
-## User Management and Synchronization
+The application will be available at http://localhost:3000.
 
-The application uses a hybrid approach for managing user data between Clerk and our database:
+## Database Setup
 
-### Development Environment
+This project uses PostgreSQL with Drizzle ORM. To set up the database:
 
-In development, user synchronization happens automatically on each authenticated request:
+1. Create a PostgreSQL database
+2. Update the DATABASE_URL in your .env file
+3. Run migrations:
 
-- When a user signs in, their Clerk data is automatically synced to our database
-- User profile updates are reflected immediately
-- No webhook setup required for local development
-- Synchronization is handled by the `createTRPCContext` middleware
-
-```typescript
-// Development mode synchronization
-if (env.NODE_ENV === "development") {
-  const clerkUser = await currentUser();
-  if (clerkUser) {
-    const dbUser = await syncUser(clerkUser);
-    // ... use synchronized user data
-  }
-}
+```bash
+bun db:migrate
 ```
 
 ### Production Environment
@@ -146,7 +153,7 @@ If you make changes to the database schema:
 1. Update the schema in `src/server/db/schema.ts`
 2. Run the migration command:
 ```bash
-bun run db:push
+bun test:e2e
 ```
 
 ### Troubleshooting
@@ -163,10 +170,9 @@ bun run db:push --reset
 ## Contributing
 
 1. Fork the repository
-2. Create your feature branch
-3. Commit your changes
-4. Push to the branch
-5. Create a new Pull Request
+2. Create a new branch
+3. Make your changes
+4. Submit a pull request
 
 ## License
 
