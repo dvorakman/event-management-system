@@ -1,0 +1,128 @@
+{
+  "result": {
+    "data": {
+      "json": [
+        {
+          "id": "12345-abcde-67890",
+          "name": "Annual Tech Conference 2023",
+          "description": "Join us for the biggest tech conference of the year featuring keynotes from industry leaders and workshops on cutting-edge technologies.",
+          "startDate": "2023-10-15T09:00:00.000Z",
+          "endDate": "2023-10-17T17:00:00.000Z",
+          "location": "Tech Convention Center, San Francisco",
+          "type": "conference",
+          "generalTicketPrice": 199,
+          "vipTicketPrice": 499,
+          "vipPerks": "VIP lounge access, exclusive workshops, speaker meet & greet",
+          "maxAttendees": 1000,
+          "status": "published",
+          "organizer": {
+            "id": "org-12345",
+            "name": "TechEvents Inc.",
+            "profileImageUrl": "https://example.com/profiles/techevents.jpg"
+          },
+          "attendeeCount": 450
+        },
+        {
+          "id": "67890-fghij-12345",
+          "name": "Web Development Workshop",
+          "description": "A hands-on workshop focusing on modern web development practices, including React, NextJS, and serverless architecture.",
+          "startDate": "2023-11-05T10:00:00.000Z",
+          "endDate": "2023-11-05T16:00:00.000Z",
+          "location": "Online",
+          "type": "workshop",
+          "generalTicketPrice": 79,
+          "vipTicketPrice": 149,
+          "vipPerks": "One-on-one mentoring session, project review",
+          "maxAttendees": 100,
+          "status": "published",
+          "organizer": {
+            "id": "org-67890",
+            "name": "Web Dev Masters",
+            "profileImageUrl": "https://example.com/profiles/webdevmasters.jpg"
+          },
+          "attendeeCount": 65
+        },
+        {
+          "id": "abcde-12345-fghij",
+          "name": "AI & Machine Learning Summit",
+          "description": "Explore the latest advancements in artificial intelligence and machine learning with experts from leading research institutions and companies.",
+          "startDate": "2023-12-10T08:30:00.000Z",
+          "endDate": "2023-12-12T18:00:00.000Z",
+          "location": "Grand Hotel Conference Center, New York",
+          "type": "conference",
+          "generalTicketPrice": 299,
+          "vipTicketPrice": 699,
+          "vipPerks": "Exclusive AI lab tours, dinner with keynote speakers, priority seating",
+          "maxAttendees": 500,
+          "status": "published",
+          "organizer": {
+            "id": "org-abcde",
+            "name": "Future AI Foundation",
+            "profileImageUrl": "https://example.com/profiles/futureai.jpg"
+          },
+          "attendeeCount": 275
+        },
+        {
+          "id": "fghij-67890-abcde",
+          "name": "Startup Networking Mixer",
+          "description": "Connect with founders, investors, and startup enthusiasts in this casual networking event designed to foster collaboration and growth.",
+          "startDate": "2023-09-20T18:00:00.000Z",
+          "endDate": "2023-09-20T21:00:00.000Z",
+          "location": "Startup Hub, Austin",
+          "type": "networking",
+          "generalTicketPrice": 25,
+          "vipTicketPrice": 75,
+          "vipPerks": "Early access, investor introductions, complimentary drinks",
+          "maxAttendees": 150,
+          "status": "published",
+          "organizer": {
+            "id": "org-fghij",
+            "name": "Startup Boost Network",
+            "profileImageUrl": "https://example.com/profiles/startupboost.jpg"
+          },
+          "attendeeCount": 130
+        },
+        {
+          "id": "klmno-pqrst-uvwxy",
+          "name": "Mobile App Development Bootcamp",
+          "description": "Intensive three-day bootcamp covering iOS and Android development with Swift and Kotlin. Perfect for beginners and intermediate developers.",
+          "startDate": "2023-10-25T09:00:00.000Z",
+          "endDate": "2023-10-27T17:00:00.000Z",
+          "location": "Dev Learning Center, Chicago",
+          "type": "workshop",
+          "generalTicketPrice": 349,
+          "vipTicketPrice": 599,
+          "vipPerks": "Take-home course materials, 1-month mentorship, app review",
+          "maxAttendees": 50,
+          "status": "published",
+          "organizer": {
+            "id": "org-klmno",
+            "name": "Mobile Dev Academy",
+            "profileImageUrl": "https://example.com/profiles/mobiledev.jpg"
+          },
+          "attendeeCount": 42
+        },
+        {
+          "id": "pqrst-uvwxy-zabcd",
+          "name": "Cybersecurity Forum 2023",
+          "description": "Join cybersecurity experts to discuss emerging threats, defense strategies, and best practices for protecting digital assets.",
+          "startDate": "2023-11-15T08:00:00.000Z",
+          "endDate": "2023-11-16T18:00:00.000Z",
+          "location": "Security Center, Washington DC",
+          "type": "conference",
+          "generalTicketPrice": 249,
+          "vipTicketPrice": 599,
+          "vipPerks": "Exclusive security workshops, certification exam vouchers",
+          "maxAttendees": 300,
+          "status": "published",
+          "organizer": {
+            "id": "org-pqrst",
+            "name": "Digital Security Alliance",
+            "profileImageUrl": "https://example.com/profiles/securityalliance.jpg"
+          },
+          "attendeeCount": 185
+        }
+      ]
+    }
+  }
+}
