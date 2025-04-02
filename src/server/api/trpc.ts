@@ -37,22 +37,22 @@ export const createTRPCContext = async (opts: { headers: Headers }) => {
     authHeader: authHeader ? `${authHeader.substring(0, 15)}...` : null,
   });
 
-  // Try both methods to get the user ID
-  const { userId: authUserId } = auth();
+  // Get auth session using Clerk's auth() helper
+  const session = await auth();
+  const userId = session.userId;
 
   console.log("[TRPC Context] Auth state:", {
-    userId: authUserId,
+    userId,
     hasHeaders: !!opts.headers,
+    sessionId: session.sessionId,
   });
-
-  const userId = authUserId;
 
   // If there's no userId, return minimal context
   if (!userId) {
     console.log("[TRPC Context] No userId found");
     return {
       db,
-      ...opts,
+      headers: opts.headers,
     };
   }
 
@@ -68,40 +68,49 @@ export const createTRPCContext = async (opts: { headers: Headers }) => {
     return {
       db,
       userId,
-      ...opts,
+      headers: opts.headers,
     };
   }
 
-  // Always sync in development/preview, or if user doesn't exist in database
-  const dbUser = await db.query.users.findFirst({
-    where: eq(users.id, userId),
-  });
-  console.log("[TRPC Context] DB user:", { id: dbUser?.id });
+  try {
+    // Always sync in development/preview, or if user doesn't exist in database
+    const dbUser = await db.query.users.findFirst({
+      where: eq(users.id, userId),
+    });
+    console.log("[TRPC Context] DB user:", { id: dbUser?.id });
 
-  const isDevelopment =
-    !process.env.VERCEL_ENV || process.env.VERCEL_ENV !== "production";
-  console.log("[TRPC Context] Environment:", {
-    isDevelopment,
-    VERCEL_ENV: process.env.VERCEL_ENV,
-  });
+    const isDevelopment = !process.env.VERCEL_ENV || process.env.VERCEL_ENV !== "production";
+    console.log("[TRPC Context] Environment:", {
+      isDevelopment,
+      VERCEL_ENV: process.env.VERCEL_ENV,
+    });
 
-  if (!dbUser || isDevelopment) {
-    console.log("[TRPC Context] Syncing user from Clerk");
-    const syncedUser = await syncUser(clerkUser);
+    if (!dbUser || isDevelopment) {
+      console.log("[TRPC Context] Syncing user from Clerk");
+      const syncedUser = await syncUser(clerkUser);
+      return {
+        db,
+        userId,
+        dbUser: syncedUser,
+        headers: opts.headers,
+      };
+    }
+
     return {
       db,
       userId,
-      dbUser: syncedUser,
-      ...opts,
+      dbUser,
+      headers: opts.headers,
+    };
+  } catch (error) {
+    console.error("[TRPC Context] Database error:", error);
+    // Return basic context if database operations fail
+    return {
+      db,
+      userId,
+      headers: opts.headers,
     };
   }
-
-  return {
-    db,
-    userId,
-    dbUser,
-    ...opts,
-  };
 };
 
 /**
@@ -192,37 +201,21 @@ export const protectedProcedure = t.procedure
     console.log("[TRPC Protected] Context:", {
       userId: ctx.userId,
       hasDbUser: !!ctx.dbUser,
+      headers: Object.fromEntries(ctx.headers.entries()),
     });
 
-    if (!ctx.userId) {
-      console.log("[TRPC Protected] No userId found");
+    if (!ctx.userId || !ctx.dbUser) {
+      console.log("[TRPC Protected] No userId or dbUser found");
       throw new TRPCError({
         code: "UNAUTHORIZED",
         message: "You must be logged in to access this resource",
       });
     }
 
-    // If we don't have a dbUser, try to sync from Clerk
-    if (!ctx.dbUser) {
-      console.log("[TRPC Protected] No dbUser found, syncing from Clerk");
-      const clerkUser = await currentUser();
-      if (clerkUser) {
-        ctx.dbUser = await syncUser(clerkUser);
-        console.log("[TRPC Protected] Synced user from Clerk:", {
-          id: ctx.dbUser.id,
-        });
-      } else {
-        console.log("[TRPC Protected] Unable to find Clerk user");
-        throw new TRPCError({
-          code: "UNAUTHORIZED",
-          message: "Unable to find user data",
-        });
-      }
-    }
-
     return next({
       ctx: {
         ...ctx,
+        // Ensure these are available in the procedure
         userId: ctx.userId,
         dbUser: ctx.dbUser,
       },

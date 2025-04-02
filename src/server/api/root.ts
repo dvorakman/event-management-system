@@ -1,6 +1,7 @@
 import { eventRouter } from "~/server/api/routers/event";
 import { createCallerFactory, createTRPCRouter } from "~/server/api/trpc";
 import { userRouter } from "./routers/user";
+import { authTestRouter } from "./routers/auth-test";
 
 /**
  * This is the primary router for your server.
@@ -10,6 +11,7 @@ import { userRouter } from "./routers/user";
 export const appRouter = createTRPCRouter({
   event: eventRouter,
   user: userRouter,
+  authTest: authTestRouter,
 });
 
 // Export type router type signature,
