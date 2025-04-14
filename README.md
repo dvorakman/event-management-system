@@ -2,360 +2,182 @@
 
 This is a [T3 Stack](https://create.t3.gg/) project built with Next.js, tRPC, Drizzle ORM, and PostgreSQL.
 
-## Database Configuration
+## Local Development Setup (Using Docker)
 
-This project supports both local PostgreSQL for development and Neon serverless PostgreSQL for production. The database connection is configured to automatically use:
+This project uses Docker Compose for a consistent and simplified local development environment.
 
-1. **Neon Serverless PostgreSQL**: When `NEON_DATABASE_URL` environment variable is present
-2. **Local PostgreSQL**: When `NEON_DATABASE_URL` is not present (default for development)
+**Prerequisites:**
+
+*   [Docker](https://www.docker.com/get-started/) must be installed and running.
+
+**Steps:**
+
+1.  **Clone the repository**
+    ```bash
+    git clone https://github.com/yourusername/event-management-system.git
+    cd event-management-system
+    ```
+
+2.  **Set up environment variables**
+    Create a `.env` file by copying the example. Fill in your Clerk keys. The `DATABASE_URL` is automatically handled by Docker Compose for local development.
+    ```bash
+    cp .env.example .env
+    # Edit .env to add your Clerk keys.
+    ```
+    **Important:** Keep `NEON_DATABASE_URL` commented out in `.env` for local Docker development to ensure the containerized PostgreSQL is used.
+
+3.  **Build and Start Docker Containers**
+    This command will build the Next.js app image (if it doesn't exist or Dockerfile changed) and start the app and PostgreSQL database containers.
+    ```bash
+    docker-compose up --build -d
+    ```
+    *   `--build`: Forces Docker to build the image based on the `Dockerfile`. Necessary on first run or after `Dockerfile` changes.
+    *   `-d`: Runs the containers in detached mode (in the background).
+
+    Your application should now be running at http://localhost:3000. The PostgreSQL database is running internally, accessible to the app container via the hostname `db`.
+
+4.  **Run Database Migrations**
+    Migrations need to be run against the database *inside* the Docker container. Use `docker-compose exec` to run the migration command within the `app` container:
+    ```bash
+    docker-compose exec app bun run db:migrate
+    ```
+
+5.  **(Optional) Generate Test Data**
+    Similar to migrations, run this inside the `app` container:
+    ```bash
+    docker-compose exec app bun run db:generate-test-data
+    ```
+
+**Common Docker Commands:**
+
+*   **Start containers:** `docker-compose up -d`
+*   **Stop containers:** `docker-compose down`
+*   **Stop and remove volumes (clears DB data):** `docker-compose down -v`
+*   **View logs:** `docker-compose logs -f` (for all services) or `docker-compose logs -f app` / `docker-compose logs -f db`
+*   **Execute a command inside the app container:** `docker-compose exec app <command>` (e.g., `docker-compose exec app ls -l`, `docker-compose exec app bun run lint`)
+*   **Connect to the database container:** `docker-compose exec db psql -U postgres -d postgres`
+
+**Development Workflow with Docker:**
+
+*   **Running Commands:** All project-specific commands (linting, testing, migrations, etc.) should be run *inside* the `app` container using `docker-compose exec app <command>`.
+    *   Lint: `docker-compose exec app bun run lint`
+    *   Type Check: `docker-compose exec app bun run typecheck`
+    *   Run Tests (if configured): `docker-compose exec app bun run test` (adjust based on your actual test script)
+*   **Code Changes:** Edit your code locally. Thanks to the volume mount in `docker-compose.yml`, the Next.js dev server inside the `app` container will automatically detect changes and hot-reload.
+*   **Adding Packages:** Run `bun install <package-name>` **inside the running container**:
+    ```bash
+    docker-compose exec app bun install <package-name>
+    ```
+    This updates `package.json` and `bun.lock` both inside the container and on your local machine (due to the volume mount). Re-running `docker-compose up --build` is **not** typically needed just for adding packages this way.
+*   **Schema Changes & Migrations:**
+    1.  Edit `src/server/db/schema.ts` locally.
+    2.  Generate migrations **inside the container**:
+        ```bash
+        docker-compose exec app bun run db:generate
+        ```
+        *(Migration files will appear in your local `drizzle/migrations` folder due to the volume mount)*
+    3.  Apply the migrations **inside the container**:
+        ```bash
+        docker-compose exec app bun run db:migrate
+        ```
+*   **Running Drizzle Studio:** Drizzle Studio needs direct access to the database. Since the DB is in Docker, run the command **inside the container**:
+    ```bash
+    docker-compose exec app bun run db:studio
+    ```
+    Then, access Drizzle Studio via the URL provided in the terminal (likely using `localhost` and the forwarded port).
+
+## Database Configuration (Overview)
+
+This project supports:
+
+1.  **Local Docker PostgreSQL:** Used automatically during `docker-compose up`. Configuration is handled within `docker-compose.yml`.
+2.  **Neon Serverless PostgreSQL:** Used for production/preview deployments on Vercel or if you manually uncomment `NEON_DATABASE_URL` in your `.env` file locally (though Docker is the recommended local method).
 
 ### Preview Deployments
 
-For Vercel preview deployments, the database schema is automatically reset before migrations are applied. This ensures each preview deployment starts with a clean database state and prevents conflicts between multiple previews.
+For Vercel preview deployments, the database schema is automatically reset before migrations are applied. This ensures each preview deployment starts with a clean database state. See [Preview Deployments Documentation](./docs/PREVIEW_DEPLOYMENTS.md).
 
-For more details, see [Preview Deployments Documentation](./docs/PREVIEW_DEPLOYMENTS.md).
+## Using with Neon Database (Alternative to Docker Local)
 
-### Setting Up Local Development
+If you choose *not* to use the Docker setup locally and prefer connecting directly to Neon:
 
-1. **Clone the repository**
+1.  Ensure Docker containers are stopped (`docker-compose down`).
+2.  Create a Neon account and project at [neon.tech](https://neon.tech).
+3.  Get your connection string.
+4.  Uncomment and update `NEON_DATABASE_URL` in your `.env` file.
+5.  Run the app directly: `bun run dev`.
+6.  Run migrations directly: `bun run db:migrate`.
 
-   ```
-   git clone https://github.com/yourusername/event-management-system.git
-   cd event-management-system
-   ```
+## Database Management (Using Drizzle ORM)
 
-2. **Install dependencies**
-
-   ```
-   bun install
-   ```
-
-3. **Set up environment variables**
-
-   ```
-   cp .env.example .env
-   ```
-
-   By default, the `.env` file is configured to use a local PostgreSQL database to reduce Neon database usage during development.
-
-4. **Start the local PostgreSQL database**
-
-   Prerequisites:
-
-   - [Docker](https://www.docker.com/get-started/) must be installed and running
-
-   Start the database:
-
-   ```bash
-   bun run db:start
-   ```
-
-   The script will:
-
-   - Check if Docker is running
-   - Start an existing container if it exists
-   - Create a new container if needed
-
-   The database will be available at:
-
-   - Host: `localhost`
-   - Port: `5432`
-   - Username: `postgres`
-   - Password: `postgres`
-   - Database: `postgres`
-
-   To verify the database is running:
-
-   ```bash
-   docker ps
-   ```
-
-   You should see a container named `event-management-postgres` in the list.
-
-   To stop the database:
-
-   ```bash
-   docker stop event-management-postgres
-   ```
-
-   To view database logs:
-
-   ```bash
-   docker logs event-management-postgres
-   ```
-
-   Troubleshooting:
-
-   - If you see "port already in use" errors, check if another PostgreSQL instance is running
-   - If Docker fails to start, ensure Docker Desktop is running
-   - If connection fails, try stopping any existing containers and starting again
-
-5. **Generate and run migrations**
-   ```bash
-   # Generate migrations based on your schema
-   bun run db:generate
-   
-   # Apply migrations to the database
-   bun run db:migrate
-   ```
-
-6. **Run the development server**
-   ```
-   bun run dev
-   ```
-
-## Using with Neon Database
-
-To use the Neon Serverless PostgreSQL database:
-
-1. Create a Neon account and project at [neon.tech](https://neon.tech)
-2. Get your connection string from the Neon dashboard
-3. Uncomment and update the `NEON_DATABASE_URL` in your `.env` file:
-   ```
-   NEON_DATABASE_URL="postgres://username:password@endpoint.neon.tech/dbname?sslmode=require"
-   ```
-
-The application will automatically detect the presence of `NEON_DATABASE_URL` and use the Neon database instead of the local PostgreSQL database. This configuration works for both the application and tools like Drizzle Studio.
-
-## Database Management
-
-This project uses Drizzle ORM with a migration-based workflow for database schema management. This approach ensures:
-
-- Consistent database structure across all environments
-- Version-controlled schema changes
-- Safe collaboration between team members
-- Reliable deployment process
+This project uses Drizzle ORM with a migration-based workflow.
 
 ### Database Environments
 
-The project supports two database environments:
+1.  **Local Docker Development:** Managed via `docker-compose`. Database hostname is `db` inside the network, accessible via `localhost:5432` from your host machine if needed.
+2.  **Production (Neon):** Configured via `NEON_DATABASE_URL` environment variable on Vercel.
 
-1. **Local Development** (`DATABASE_URL`)
+### Schema Management Workflow (with Docker)
 
-   - Uses Docker-based PostgreSQL
-   - Ideal for rapid development and testing
-   - Start with `bun run db:start`
-   - Connection details:
-     ```
-     Host: localhost
-     Port: 5432
-     User: postgres
-     Password: postgres
-     Database: postgres
-     ```
+1.  **Making Schema Changes:**
+    ```bash
+    # 1. Ensure containers are running
+    docker-compose up -d
 
-2. **Production** (`NEON_DATABASE_URL`)
-   - Uses Neon serverless PostgreSQL
-   - Automatically used when `NEON_DATABASE_URL` is present
-   - Set up at [neon.tech](https://neon.tech)
+    # 2. Edit schema in src/server/db/schema.ts locally
 
-### Schema Management Workflow
+    # 3. Generate migration (inside container)
+    docker-compose exec app bun run db:generate
 
-#### For Individual Developers
+    # 4. Review migration in drizzle/migrations/ (locally)
 
-1. **Making Schema Changes**
+    # 5. Apply migration (inside container)
+    docker-compose exec app bun run db:migrate
 
-   ```bash
-   # 1. Start your local database
-   bun run db:start
+    # 6. Test (e.g., using Drizzle Studio inside container)
+    docker-compose exec app bun run db:studio
+    ```
 
-   # 2. Edit schema in src/server/db/schema.ts
-   # Example: Add a new column, create a table, etc.
-
-   # 3. Generate a migration
-   bun run db:generate
-
-   # 4. Review the generated migration in drizzle/migrations/
-   # Make sure it does what you expect!
-
-   # 5. Apply the migration
-   bun run db:migrate
-
-   # 6. Test your changes
-   # Use Drizzle Studio to verify:
-   bun run db:studio
-   ```
-
-2. **Committing Changes**
-   ```bash
-   # Always commit both the schema changes and migration files:
-   git add src/server/db/schema.ts
-   git add drizzle/migrations/*
-   git commit -m "feat(db): add [your change description]"
-   ```
+2.  **Committing Changes:** Commit `schema.ts` and the generated migration files.
 
 #### Team Collaboration
 
-1. **Before Starting Work**
+1.  **Before Starting Work:**
+    ```bash
+    # 1. Pull latest changes
+    git pull origin main
 
-   ```bash
-   # 1. Pull latest changes
-   git pull origin main
+    # 2. Ensure Docker containers are running
+    docker-compose up -d
 
-   # 2. Start local database
-   bun run db:start
+    # 3. Apply any new migrations (inside container)
+    docker-compose exec app bun run db:migrate
+    ```
 
-   # 3. Apply any new migrations
-   bun run db:migrate
-   ```
-
-2. **Handling Conflicts**
-
-   - If multiple developers modify the schema:
-
-     ```bash
-     # 1. Stash your changes if needed
-     git stash
-
-     # 2. Pull latest changes
-     git pull origin main
-
-     # 3. Apply upstream migrations
-     bun run db:migrate
-
-     # 4. Reapply your changes
-     git stash pop  # if you stashed
-
-     # 5. Generate new migration
-     bun run db:generate
-     ```
-
-   - Always review migrations before pushing
-   - Coordinate major schema changes with team
-
-3. **Best Practices**
-   - One schema change per commit
-   - Clear commit messages describing changes
-   - Test migrations both up and down
-   - Document breaking changes
-   - Use meaningful migration names
+2.  **Handling Conflicts:** Follow standard Git practices. After pulling and resolving code conflicts, ensure you apply any new migrations from `main` using the `docker-compose exec app bun run db:migrate` command before continuing your work or generating new migrations.
 
 ### Migration Management
 
-1. **Understanding Migration Files**
+*   **Generate:** `docker-compose exec app bun run db:generate`
+*   **Apply:** `docker-compose exec app bun run db:migrate`
+*   **Reset & Apply All (Deletes Data!):** `docker-compose exec app bun run db:migrate:fresh`
+*   **View Database:** `docker-compose exec app bun run db:studio`
 
-   - Located in `drizzle/migrations/`
-   - Named with timestamps (e.g., `0000_initial.sql`)
-   - Contains both `up` and `down` migrations
-   - Automatically tracked in database
+### Database Reset (Docker Development)
 
-2. **Common Migration Tasks**
+To completely reset your local Docker database and start fresh:
 
-   ```bash
-   # Generate migration after schema change
-   bun run db:generate
+```bash
+# Stop containers and remove the persistent volume
+docker-compose down -v
 
-   # Apply pending migrations
-   bun run db:migrate
+# Restart containers (a new empty volume will be created)
+docker-compose up --build -d
 
-   # Reset database and run all migrations (fresh start)
-   bun run db:migrate:fresh
-
-   # View database state
-   bun run db:studio
-   ```
-
-3. **Database Reset**
-
-   The `db:migrate:fresh` command provides a way to completely reset your database and start fresh:
-   
-   ```bash
-   bun run db:migrate:fresh
-   ```
-   
-   This command:
-   - Drops the entire public schema
-   - Creates a new public schema
-   - Runs all migrations from scratch
-   - Works with both local PostgreSQL and Neon databases
-   
-   Use this when:
-   - You need a clean database state
-   - You're experiencing migration conflicts
-   - You want to reset development data
-   - Testing deployment scenarios
-   
-   ⚠️ **Warning**: This command will delete all data in the database. Only use it in development or when you're sure you want to start fresh.
-
-4. **Troubleshooting Migrations**
-
-   - If migrations fail:
-     1. Check database connection
-     2. Review migration files
-     3. Check for conflicts with existing data
-     4. Verify schema.ts changes
-   - Common issues:
-     - "Relation already exists": Migration already applied
-     - "Relation doesn't exist": Missing migration
-     - "Column cannot be null": Data consistency issue
-     - Database state issues: Try `db:migrate:fresh` to reset
-
-### Production Deployments
-
-1. **Vercel Deployment**
-
-   - Migrations run automatically during build
-   - Ensure `NEON_DATABASE_URL` is set in Vercel
-   - Build command includes migrations:
-     ```bash
-     bun run build:app
-     ```
-
-2. **Preview Deployments**
-
-   The system supports Vercel preview deployments with database schema reset:
-   
-   - Preview environments automatically reset the database schema
-   - Each PR gets a clean database state
-   - No data conflicts between different preview deployments
-   - Set `VERCEL_ENV=preview` to enable automatic schema reset
-   
-   This ensures that your preview deployments always start with a clean database, making testing easier and more reliable.
-
-3. **Database Safety**
-
-   - Always backup before major migrations
-   - Test migrations on staging if possible
-   - Use transactions for data migrations
-   - Consider downtime for large migrations
-
-4. **Monitoring & Maintenance**
-   - Check migration status in production
-   - Monitor database performance
-   - Keep migrations under version control
-   - Regular backups (automated with Neon)
-
-### Development Tools
-
-1. **Drizzle Studio**
-
-   ```bash
-   bun run db:studio
-   ```
-
-   - View and edit data
-   - Explore schema
-   - Debug issues
-   - Works with both local and Neon databases
-
-2. **Docker Database**
-
-   ```bash
-   # Start database
-   bun run db:start
-
-   # View logs
-   docker logs event-management-postgres
-
-   # Stop database
-   docker stop event-management-postgres
-   ```
-
-3. **Schema Validation**
-   - TypeScript integration
-   - Runtime type checking
-   - Automatic query validation
-   - Built-in security features
+# Apply all migrations to the fresh database
+docker-compose exec app bun run db:migrate
+```
+⚠️ **Warning**: `docker-compose down -v` permanently deletes your local database data.
 
 ## Authentication with Clerk
 
@@ -419,13 +241,14 @@ This project uses [Clerk](https://clerk.com/) for authentication and user manage
 
 ## Deployment on Vercel
 
-This project is configured for easy deployment on Vercel:
+Docker is used for **local development consistency**. Vercel **does not** use your `Dockerfile` or `docker-compose.yml` for deployment.
 
-1. Connect your GitHub repository to Vercel
-2. Configure the environment variables:
-   - `NEON_DATABASE_URL`: Your Neon database connection string
-   - `DATABASE_URL`: Same as your `NEON_DATABASE_URL` for production deployments
-   - Add any other environment variables needed (Clerk keys, etc.)
+1.  Connect your GitHub repository to Vercel.
+2.  Configure environment variables in Vercel project settings:
+    *   `NEON_DATABASE_URL`: Your Neon database connection string.
+    *   `DATABASE_URL`: Typically set to the same value as `NEON_DATABASE_URL` for production builds/migrations on Vercel.
+    *   `CLERK_SECRET_KEY`, `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `STRIPE_SECRET_KEY`, etc.
+3.  Vercel automatically detects Next.js, runs your build command (e.g., `bun run build`), which **includes running migrations** against the configured `DATABASE_URL`/`NEON_DATABASE_URL`, and deploys the application.
 
 ## Learn More
 
@@ -436,3 +259,13 @@ To learn more about the tech stack:
 - [tRPC](https://trpc.io)
 - [Neon Serverless PostgreSQL](https://neon.tech)
 - [T3 Stack](https://create.t3.gg/)
+
+### Development Tools
+
+1.  **Drizzle Studio:** Run inside the container: `docker-compose exec app bun run db:studio`
+2.  **Docker Desktop:** Provides GUI for managing containers, volumes, logs.
+3.  **Direct DB Access (Optional):** Connect using a DB client (like DBeaver, TablePlus) to `localhost:5432` (user: `postgres`, pass: `postgres`, db: `postgres`).
+4.  **Common Tasks:**
+    *   Linting: `docker-compose exec app bun run lint`
+    *   Formatting: `docker-compose exec app bun run format:write`
+    *   Type Checking: `docker-compose exec app bun run typecheck`
