@@ -10,11 +10,11 @@ services:
     depends_on:
       - db
     environment:
-      # Use host.docker.internal to connect to the db service from the app container
+      # Use the service name 'db' to connect from the app container to the db container
+      # on the Docker network.
       # Ensure DATABASE_URL uses this hostname if NEON_DATABASE_URL is not set
       # NOTE: You still need your .env file for Clerk, Stripe etc. keys
       # These are NOT automatically passed from docker-compose to the container build
-      # We will mount the .env file instead
       DATABASE_URL: postgresql://postgres:postgres@db:5432/postgres
       NODE_ENV: development # Override NODE_ENV for development
       # Pass other necessary public env vars if needed, e.g.
