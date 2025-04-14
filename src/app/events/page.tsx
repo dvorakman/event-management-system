@@ -8,6 +8,11 @@ import { api } from "~/trpc/react";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
 import { Label } from "~/components/ui/label";
+import { Calendar } from "~/components/ui/calendar";
+import { cn } from "~/lib/utils";
+import { CalendarIcon } from "lucide-react";
+import { format } from "date-fns";
+
 import {
   Select,
   SelectContent,
@@ -15,6 +20,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "~/components/ui/select";
+
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+
 import { Skeleton } from "~/components/ui/skeleton";
 
 // Loading component shown during event data fetch
@@ -64,11 +76,12 @@ function EventsList() {
   const [search, setSearch] = useState(searchQuery);
   const [priceMin, setPriceMin] = useState(minPrice);
   const [priceMax, setPriceMax] = useState(maxPrice);
+  const [date, setDate] = useState<Date | undefined>(new Date());
 
   // Fetch events with current filters
   const { data: eventsData, isLoading } = api.event.list.useQuery(
     {
-      limit: 10,
+      limit: 100,
       cursor: cursor ? parseInt(cursor) : undefined,
       type:
         typeFilter && typeFilter !== "all" ? (typeFilter as any) : undefined,
@@ -193,8 +206,8 @@ function EventsList() {
       {/* Filter Section */}
       <div className="mb-8 rounded-lg bg-white p-6 shadow-md dark:bg-gray-800">
         <h2 className="mb-4 text-xl font-semibold">Filter Events</h2>
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
-          <div>
+        <div className="grid grid-cols-3">
+          <div className="flex-1">
             <Label htmlFor="search">Search</Label>
             <Input
               id="search"
@@ -203,6 +216,40 @@ function EventsList() {
               onChange={(e) => setSearch(e.target.value)}
             />
           </div>
+          <div>
+            <Label htmlFor="location">Location</Label>
+            <Input id="location" placeholder="Location" />
+          </div>
+          <div>
+            <Label htmlFor="date" className="mb-2 block">
+              Date
+            </Label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  id="date"
+                  variant="outline"
+                  className={cn(
+                    "w-[240px] justify-start text-left font-normal",
+                    !date && "text-muted-foreground",
+                  )}
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {date ? format(date, "PPP") : "Pick a date"}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={date}
+                  onSelect={setDate}
+                  initialFocus
+                />
+              </PopoverContent>
+            </Popover>
+          </div>
+        </div>
+        <div className="grid grid-cols-3 gap-4">
           <div>
             <Label htmlFor="type">Event Type</Label>
             <Select value={type} onValueChange={setType}>
