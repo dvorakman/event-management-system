@@ -10,6 +10,10 @@ jobs:
   lint-typecheck:
     name: Lint and Type Check
     runs-on: ubuntu-latest
+    env:
+      CLERK_SECRET_KEY: dummy_secret_key_for_ci
+      NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: pk_dummy_publishable_key_for_ci
+      DATABASE_URL: dummy_db_url_for_ci
     steps:
       - uses: actions/checkout@v4
       - uses: oven-sh/setup-bun@v1
