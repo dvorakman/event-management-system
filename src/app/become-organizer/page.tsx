@@ -12,7 +12,7 @@ export default async function BecomeOrganizerPage() {
 
   try {
     // Check if user is already an organizer
-    const dbUser = await api.user.getCurrentUser.query();
+    const dbUser = await api.user.getCurrentUser();
 
     if (dbUser?.role === "organizer" || dbUser?.role === "admin") {
       redirect("/dashboard");
