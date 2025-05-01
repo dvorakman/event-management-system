@@ -145,6 +145,38 @@ function EventsList() {
               />
             </div>
             <div>
+              <Label htmlFor="location">Location</Label>
+              <Input id="location" placeholder="Location" />
+            </div>
+            <div>
+              <Label htmlFor="date" className="mb-2 block">
+                Date
+              </Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    id="date"
+                    variant="outline"
+                    className={cn(
+                      "w-[240px] justify-start text-left font-normal",
+                      !date && "text-muted-foreground",
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {date ? format(date, "PPP") : "Pick a date"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={date}
+                    onSelect={setDate}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+            <div>
               <Label htmlFor="type">Event Type</Label>
               <Select value={type} onValueChange={setType}>
                 <SelectTrigger id="type">
