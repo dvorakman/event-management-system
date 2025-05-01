@@ -149,7 +149,7 @@ async function generateTestData() {
       const startDate = randomFutureDate();
       const endDate = randomEndDate(startDate);
       const eventType = randomItem(EVENT_TYPES);
-      const status = i < 12 ? "published" : randomItem(EVENT_STATUSES);
+      const status = randomItem(EVENT_STATUSES);
 
       // Generate price with realistic values
       const generalTicketPrice =

@@ -11,7 +11,6 @@ import {
   sum,
   desc,
   sql,
-  lt,
 } from "drizzle-orm";
 import {
   createTRPCRouter,
@@ -39,109 +38,82 @@ export const eventRouter = createTRPCRouter({
     .input(
       z
         .object({
+          limit: z.number().min(1).max(100).default(10),
+          cursor: z.number().optional(), // For pagination
           type: z
             .enum(["conference", "concert", "workshop", "networking", "other"])
             .optional(),
           status: z
             .enum(["published", "draft", "cancelled", "completed"])
             .optional(),
-          search: z.string().optional(),
-          maxPrice: z.number().optional(),
-          location: z.string().optional(),
-          startDate: z.string().optional(),
-          endDate: z.string().optional(),
+          search: z.string().optional(), // Search by name, description, or location
+          minPrice: z.number().optional(), // Minimum price filter
+          maxPrice: z.number().optional(), // Maximum price filter
         })
         .optional(),
     )
     .query(async ({ ctx, input }) => {
+      // Build all the conditions
       const conditions = [];
 
-      // --- Default Filters ---
-      // Only show published events by default
+      // Apply filters if provided
+      if (input?.type) {
+        conditions.push(eq(events.type, input.type));
+      }
+
+      // For public listings, only show published events
       if (input?.status) {
         conditions.push(eq(events.status, input.status));
       } else {
         conditions.push(eq(events.status, "published"));
       }
-      // Consider adding a default future date filter if needed:
-      // conditions.push(gte(events.startDate, new Date()));
 
-      // --- Apply Input Filters ---
-      if (input?.type) {
-        conditions.push(eq(events.type, input.type));
-      }
+      // Apply search filter (case-insensitive search across multiple fields)
       if (input?.search) {
         const searchTerm = `%${input.search}%`;
         conditions.push(
           or(
             like(events.name, searchTerm),
             like(events.description, searchTerm),
-            // Add location to general search as well? Or keep specific filter?
-            // like(events.location, searchTerm),
+            like(events.location, searchTerm),
           ),
         );
       }
+
+      // Apply price range filters
+      if (input?.minPrice !== undefined) {
+        conditions.push(gte(events.generalTicketPrice, input.minPrice));
+      }
+
       if (input?.maxPrice !== undefined) {
-        // Assuming maxPrice filters generalTicketPrice
-        conditions.push(
-          lte(events.generalTicketPrice, input.maxPrice.toString()),
-        );
+        conditions.push(lte(events.generalTicketPrice, input.maxPrice));
       }
 
-      // --- NEW: Location Filter ---
-      if (input?.location) {
-        // Case-insensitive search for location string
-        conditions.push(like(events.location, `%${input.location}%`));
+      // Apply cursor-based pagination
+      if (input?.cursor) {
+        conditions.push(gt(events.id, input.cursor));
       }
 
-      // --- REVISED: Date Range Filter ---
-      const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
-      const startFilter = input?.startDate?.match(dateRegex)
-        ? input.startDate
-        : null;
-      const endFilter = input?.endDate?.match(dateRegex) ? input.endDate : null;
-
-      if (startFilter && endFilter) {
-        // Range: startDate <= eventDate <= endDate
-        if (startFilter <= endFilter) {
-          // Basic validation
-          conditions.push(
-            sql`date(${events.startDate}) >= ${startFilter} and date(${events.startDate}) <= ${endFilter}`,
-          );
-        } else {
-          console.warn(
-            "Date range filter ignored: Start date is after end date.",
-          );
-        }
-      } else if (startFilter) {
-        // Only Start Date provided: eventDate >= startDate
-        conditions.push(sql`date(${events.startDate}) >= ${startFilter}`);
-      } else if (endFilter) {
-        // Only End Date provided: eventDate <= endDate
-        conditions.push(sql`date(${events.startDate}) <= ${endFilter}`);
-      }
-
-      if (
-        (input?.startDate && !startFilter) ||
-        (input?.endDate && !endFilter)
-      ) {
-        console.error(
-          "Invalid date format provided for range filter. Expected YYYY-MM-DD.",
-        );
-        // Optionally throw: throw new TRPCError({ code: 'BAD_REQUEST', message: 'Invalid date format' });
-      }
-      // --- END REVISED: Date Range Filter ---
-
-      // Execute query without limit/offset
+      // Execute query with all conditions
       const items = await ctx.db
         .select()
         .from(events)
         .where(and(...conditions))
-        .orderBy(events.startDate);
+        .orderBy(events.startDate)
+        .limit(input?.limit ?? 10);
 
-      // Return only the items array
+      // Get the next cursor
+      let nextCursor: number | undefined = undefined;
+      if (items.length > 0) {
+        const lastItem = items[items.length - 1];
+        if (lastItem) {
+          nextCursor = lastItem.id;
+        }
+      }
+
       return {
         items,
+        nextCursor,
       };
     }),
 
