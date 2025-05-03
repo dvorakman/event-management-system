@@ -55,7 +55,7 @@ export const events = createTable(
     endDate: timestamp("end_date", { withTimezone: true }).notNull(),
     location: text("location").notNull(),
     type: text("type", {
-      enum: ["conference", "concert", "workshop", "networking", "other"],
+      enum: ["conference", "music_concert", "networking"],
     }).notNull(),
     generalTicketPrice: decimal("general_ticket_price", { precision: 10, scale: 2 }).notNull(),
     vipTicketPrice: decimal("vip_ticket_price", { precision: 10, scale: 2 }).notNull(),

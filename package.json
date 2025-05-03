@@ -19,10 +19,12 @@
     "lint:fix": "next lint --fix",
     "preview": "next build && next start",
     "start": "next start",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "db:generate-test-data": "bun run scripts/generate-test-data.ts"
   },
   "dependencies": {
     "@clerk/nextjs": "^6.12.5",
+    "@faker-js/faker": "^9.7.0",
     "@neondatabase/serverless": "^0.10.4",
     "@react-three/drei": "^10.0.4",
     "@react-three/fiber": "^9.0.0-alpha.8",
