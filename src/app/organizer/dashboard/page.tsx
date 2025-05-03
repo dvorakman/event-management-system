@@ -59,169 +59,43 @@ import {
 const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#8884D8"];
 const USE_MOCK_DATA = true; // Set to false when ready to use real data
 
-// Mock data for testing
-const MOCK_DATA = {
-  totalEvents: 7,
-  publishedEvents: 5,
-  totalRegistrations: 42,
-  totalRevenue: 3750.5,
-  recentRegistrations: [
-    {
-      id: 1,
-      eventName: "Tech Conference 2024",
-      ticketType: "vip",
-      amount: 199.99,
-      date: new Date("2024-05-20"),
-    },
-    {
-      id: 2,
-      eventName: "Summer Music Festival",
-      ticketType: "general",
-      amount: 89.99,
-      date: new Date("2024-05-18"),
-    },
-    {
-      id: 3,
-      eventName: "Tech Conference 2024",
-      ticketType: "general",
-      amount: 99.99,
-      date: new Date("2024-05-15"),
-    },
-    {
-      id: 4,
-      eventName: "Business Networking",
-      ticketType: "vip",
-      amount: 149.99,
-      date: new Date("2024-05-10"),
-    },
-    {
-      id: 5,
-      eventName: "AI Workshop",
-      ticketType: "general",
-      amount: 79.99,
-      date: new Date("2024-05-05"),
-    },
-  ],
-  upcomingEvents: [
-    {
-      id: 101,
-      name: "Tech Conference 2024",
-      startDate: new Date("2024-06-15"),
-      registrationCount: 22,
-    },
-    {
-      id: 102,
-      name: "Summer Music Festival",
-      startDate: new Date("2024-07-10"),
-      registrationCount: 15,
-    },
-    {
-      id: 103,
-      name: "Business Networking",
-      startDate: new Date("2024-06-05"),
-      registrationCount: 5,
-    },
-  ],
-  ticketDistribution: [
-    { ticketType: "general", count: 28 },
-    { ticketType: "vip", count: 14 },
-  ],
-  monthlyRevenue: [
-    { month: "2024-01", revenue: 550 },
-    { month: "2024-02", revenue: 720 },
-    { month: "2024-03", revenue: 880 },
-    { month: "2024-04", revenue: 1050 },
-    { month: "2024-05", revenue: 1250 },
-    { month: "2024-06", revenue: 250 },
-  ],
-};
+// Type definitions
+type TicketType = "general" | "vip";
+type EventStatus = "published" | "draft" | "cancelled" | "completed";
+type AttendeeStatus = "confirmed" | "pending" | "cancelled" | "refunded";
+type PaymentStatus = "completed" | "pending" | "failed" | "refunded";
 
-// Mock data for events list
-const MOCK_EVENTS = [
-  {
-    id: 101,
-    name: "Tech Conference 2024",
-    description:
-      "A three-day conference featuring the latest in tech innovations, workshops, and networking opportunities.",
-    startDate: new Date("2024-06-15"),
-    endDate: new Date("2024-06-18"),
-    location: "San Francisco, CA",
-    type: "conference",
-    generalTicketPrice: 99.99,
-    vipTicketPrice: 199.99,
-    maxAttendees: 500,
-    status: "published",
-    createdAt: new Date("2024-03-01"),
-    registrations: 22,
-  },
-  {
-    id: 102,
-    name: "Summer Music Festival",
-    description:
-      "Annual outdoor music festival featuring top bands and solo artists across multiple genres.",
-    startDate: new Date("2024-07-10"),
-    endDate: new Date("2024-07-12"),
-    location: "Austin, TX",
-    type: "concert",
-    generalTicketPrice: 89.99,
-    vipTicketPrice: 179.99,
-    maxAttendees: 2000,
-    status: "published",
-    createdAt: new Date("2024-02-15"),
-    registrations: 15,
-  },
-  {
-    id: 103,
-    name: "Business Networking",
-    description:
-      "An evening of networking with professionals from various industries.",
-    startDate: new Date("2024-06-05"),
-    endDate: new Date("2024-06-05"),
-    location: "New York, NY",
-    type: "networking",
-    generalTicketPrice: 49.99,
-    vipTicketPrice: 149.99,
-    maxAttendees: 150,
-    status: "published",
-    createdAt: new Date("2024-04-20"),
-    registrations: 5,
-  },
-  {
-    id: 104,
-    name: "AI Workshop",
-    description:
-      "Hands-on workshop on implementing AI solutions for businesses.",
-    startDate: new Date("2024-08-20"),
-    endDate: new Date("2024-08-21"),
-    location: "Seattle, WA",
-    type: "workshop",
-    generalTicketPrice: 79.99,
-    vipTicketPrice: 159.99,
-    maxAttendees: 100,
-    status: "draft",
-    createdAt: new Date("2024-05-01"),
-    registrations: 0,
-  },
-  {
-    id: 105,
-    name: "Digital Marketing Summit",
-    description:
-      "Learn the latest digital marketing strategies from industry experts.",
-    startDate: new Date("2024-09-15"),
-    endDate: new Date("2024-09-17"),
-    location: "Chicago, IL",
-    type: "conference",
-    generalTicketPrice: 129.99,
-    vipTicketPrice: 249.99,
-    maxAttendees: 300,
-    status: "draft",
-    createdAt: new Date("2024-05-05"),
-    registrations: 0,
-  },
-];
+interface Attendee {
+  id: number;
+  userId: string;
+  userName: string;
+  eventId: number;
+  eventName: string;
+  ticketType: TicketType;
+  status: AttendeeStatus;
+  paymentStatus: PaymentStatus;
+  totalAmount: number;
+  createdAt: Date;
+}
 
-// Mock data for attendees list
-const MOCK_ATTENDEES = [
+interface Event {
+  id: number;
+  name: string;
+  description: string;
+  startDate: Date;
+  endDate: Date;
+  location: string;
+  type: string;
+  generalTicketPrice: number;
+  vipTicketPrice: number;
+  maxAttendees: number;
+  status: EventStatus;
+  createdAt: Date;
+  registrations: number;
+}
+
+// Mock data for attendees list (defined first so we can calculate totals from it)
+const MOCK_ATTENDEES: Attendee[] = [
   {
     id: 1,
     userId: "user123",
@@ -342,7 +216,224 @@ const MOCK_ATTENDEES = [
     totalAmount: 179.99,
     createdAt: new Date("2024-05-01"),
   },
+  // Additional attendees to match total registrations
+  {
+    id: 11,
+    userId: "user902",
+    userName: "Jennifer Lopez",
+    eventId: 101,
+    eventName: "Tech Conference 2024",
+    ticketType: "vip",
+    status: "confirmed",
+    paymentStatus: "completed",
+    totalAmount: 199.99,
+    createdAt: new Date("2024-04-29"),
+  },
+  {
+    id: 12,
+    userId: "user903",
+    userName: "Thomas Wilson",
+    eventId: 101,
+    eventName: "Tech Conference 2024",
+    ticketType: "general",
+    status: "confirmed",
+    paymentStatus: "completed",
+    totalAmount: 99.99,
+    createdAt: new Date("2024-04-28"),
+  },
+  {
+    id: 13,
+    userId: "user904",
+    userName: "Maria Garcia",
+    eventId: 102,
+    eventName: "Summer Music Festival",
+    ticketType: "general",
+    status: "confirmed",
+    paymentStatus: "completed",
+    totalAmount: 89.99,
+    createdAt: new Date("2024-04-25"),
+  },
+  {
+    id: 14,
+    userId: "user905",
+    userName: "Robert Johnson",
+    eventId: 103,
+    eventName: "Business Networking",
+    ticketType: "general",
+    status: "confirmed",
+    paymentStatus: "completed",
+    totalAmount: 49.99,
+    createdAt: new Date("2024-04-20"),
+  },
 ];
+
+// Calculate event registration counts based on confirmed attendees
+const calculateEventRegistrations = (): Record<number, number> => {
+  const eventCounts: Record<number, number> = {};
+  MOCK_ATTENDEES.forEach((attendee) => {
+    if (attendee.status === "confirmed") {
+      eventCounts[attendee.eventId] = (eventCounts[attendee.eventId] || 0) + 1;
+    }
+  });
+  return eventCounts;
+};
+
+// Calculate ticket type distribution
+const calculateTicketDistribution = () => {
+  const typeCount: Record<TicketType, number> = { general: 0, vip: 0 };
+  MOCK_ATTENDEES.forEach((attendee) => {
+    if (attendee.status === "confirmed") {
+      typeCount[attendee.ticketType] =
+        (typeCount[attendee.ticketType] || 0) + 1;
+    }
+  });
+  return [
+    { ticketType: "general", count: typeCount.general },
+    { ticketType: "vip", count: typeCount.vip },
+  ];
+};
+
+// Calculate total revenue from confirmed attendees
+const calculateTotalRevenue = (): number => {
+  return MOCK_ATTENDEES.filter((a) => a.status === "confirmed").reduce(
+    (sum, attendee) => sum + attendee.totalAmount,
+    0,
+  );
+};
+
+// Get confirmed registrations count
+const getConfirmedRegistrations = (): number => {
+  return MOCK_ATTENDEES.filter((a) => a.status === "confirmed").length;
+};
+
+// Calculate all the derived data
+const eventRegistrations = calculateEventRegistrations();
+const ticketDistribution = calculateTicketDistribution();
+const totalRevenue = calculateTotalRevenue();
+const confirmedRegistrations = getConfirmedRegistrations();
+
+// Mock data for events list
+const MOCK_EVENTS: Event[] = [
+  {
+    id: 101,
+    name: "Tech Conference 2024",
+    description:
+      "A three-day conference featuring the latest in tech innovations, workshops, and networking opportunities.",
+    startDate: new Date("2024-06-15"),
+    endDate: new Date("2024-06-18"),
+    location: "San Francisco, CA",
+    type: "conference",
+    generalTicketPrice: 99.99,
+    vipTicketPrice: 199.99,
+    maxAttendees: 500,
+    status: "published",
+    createdAt: new Date("2024-03-01"),
+    registrations: eventRegistrations[101] || 0,
+  },
+  {
+    id: 102,
+    name: "Summer Music Festival",
+    description:
+      "Annual outdoor music festival featuring top bands and solo artists across multiple genres.",
+    startDate: new Date("2024-07-10"),
+    endDate: new Date("2024-07-12"),
+    location: "Austin, TX",
+    type: "concert",
+    generalTicketPrice: 89.99,
+    vipTicketPrice: 179.99,
+    maxAttendees: 2000,
+    status: "published",
+    createdAt: new Date("2024-02-15"),
+    registrations: eventRegistrations[102] || 0,
+  },
+  {
+    id: 103,
+    name: "Business Networking",
+    description:
+      "An evening of networking with professionals from various industries.",
+    startDate: new Date("2024-06-05"),
+    endDate: new Date("2024-06-05"),
+    location: "New York, NY",
+    type: "networking",
+    generalTicketPrice: 49.99,
+    vipTicketPrice: 149.99,
+    maxAttendees: 150,
+    status: "published",
+    createdAt: new Date("2024-04-20"),
+    registrations: eventRegistrations[103] || 0,
+  },
+  {
+    id: 104,
+    name: "AI Workshop",
+    description:
+      "Hands-on workshop on implementing AI solutions for businesses.",
+    startDate: new Date("2024-08-20"),
+    endDate: new Date("2024-08-21"),
+    location: "Seattle, WA",
+    type: "workshop",
+    generalTicketPrice: 79.99,
+    vipTicketPrice: 159.99,
+    maxAttendees: 100,
+    status: "draft",
+    createdAt: new Date("2024-05-01"),
+    registrations: eventRegistrations[104] || 0,
+  },
+  {
+    id: 105,
+    name: "Digital Marketing Summit",
+    description:
+      "Learn the latest digital marketing strategies from industry experts.",
+    startDate: new Date("2024-09-15"),
+    endDate: new Date("2024-09-17"),
+    location: "Chicago, IL",
+    type: "conference",
+    generalTicketPrice: 129.99,
+    vipTicketPrice: 249.99,
+    maxAttendees: 300,
+    status: "draft",
+    createdAt: new Date("2024-05-05"),
+    registrations: eventRegistrations[105] || 0,
+  },
+];
+
+// Mock data for testing
+const MOCK_DATA = {
+  totalEvents: MOCK_EVENTS.length,
+  publishedEvents: MOCK_EVENTS.filter((e) => e.status === "published").length,
+  totalRegistrations: confirmedRegistrations,
+  totalRevenue: totalRevenue,
+  recentRegistrations: MOCK_ATTENDEES.filter((a) => a.status === "confirmed")
+    .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+    .slice(0, 5)
+    .map((a) => ({
+      id: a.id,
+      eventName: a.eventName,
+      ticketType: a.ticketType,
+      amount: a.totalAmount,
+      date: a.createdAt,
+    })),
+  upcomingEvents: MOCK_EVENTS.filter(
+    (e) => e.status === "published" && e.startDate > new Date(),
+  )
+    .sort((a, b) => a.startDate.getTime() - b.startDate.getTime())
+    .slice(0, 3)
+    .map((e) => ({
+      id: e.id,
+      name: e.name,
+      startDate: e.startDate,
+      registrationCount: e.registrations,
+    })),
+  ticketDistribution: ticketDistribution,
+  monthlyRevenue: [
+    { month: "2023-12", revenue: 350 },
+    { month: "2024-01", revenue: 550 },
+    { month: "2024-02", revenue: 720 },
+    { month: "2024-03", revenue: 880 },
+    { month: "2024-04", revenue: 1050 },
+    { month: "2024-05", revenue: totalRevenue / 2 }, // Split revenue between last two months
+    { month: "2024-06", revenue: totalRevenue / 2 },
+  ],
+};
 
 export default function OrganizerDashboardPage() {
   const [activeTab, setActiveTab] = useState("overview");
