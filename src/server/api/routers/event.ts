@@ -11,6 +11,7 @@ import {
   sum,
   desc,
   sql,
+  asc,
 } from "drizzle-orm";
 import {
   createTRPCRouter,
@@ -372,6 +373,19 @@ export const eventRouter = createTRPCRouter({
 
     const totalEvents = eventsResult[0]?.count ?? 0;
 
+    // Get published events count
+    const publishedEventsResult = await ctx.db
+      .select({ count: count() })
+      .from(events)
+      .where(
+        and(
+          eq(events.organizerId, userId),
+          eq(events.status, "published")
+        )
+      );
+
+    const publishedEvents = publishedEventsResult[0]?.count ?? 0;
+
     // Get total registrations and revenue
     const registrationsResult = await ctx.db
       .select({
@@ -405,11 +419,79 @@ export const eventRouter = createTRPCRouter({
       .orderBy(desc(registrations.createdAt))
       .limit(5);
 
+    // Get upcoming events
+    const upcomingEvents = await ctx.db
+      .select({
+        id: events.id,
+        name: events.name,
+        startDate: events.startDate,
+        registrationCount: count(registrations.id),
+      })
+      .from(events)
+      .leftJoin(
+        registrations,
+        and(
+          eq(events.id, registrations.eventId),
+          eq(registrations.status, "confirmed"),
+        ),
+      )
+      .where(
+        and(
+          eq(events.organizerId, userId),
+          eq(events.status, "published"),
+          gt(events.startDate, new Date()),
+        ),
+      )
+      .groupBy(events.id)
+      .orderBy(asc(events.startDate))
+      .limit(3);
+
+    // Get ticket type distribution
+    const ticketDistribution = await ctx.db
+      .select({
+        ticketType: registrations.ticketType,
+        count: count(),
+      })
+      .from(registrations)
+      .innerJoin(events, eq(registrations.eventId, events.id))
+      .where(
+        and(
+          eq(events.organizerId, userId),
+          eq(registrations.status, "confirmed"),
+        ),
+      )
+      .groupBy(registrations.ticketType);
+
+    // Get monthly revenue for the past 6 months
+    const sixMonthsAgo = new Date();
+    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+    
+    const monthlyRevenue = await ctx.db
+      .select({
+        month: sql`to_char(${registrations.createdAt}, 'YYYY-MM')`,
+        revenue: sum(registrations.totalAmount),
+      })
+      .from(registrations)
+      .innerJoin(events, eq(registrations.eventId, events.id))
+      .where(
+        and(
+          eq(events.organizerId, userId),
+          eq(registrations.status, "confirmed"),
+          gte(registrations.createdAt, sixMonthsAgo),
+        ),
+      )
+      .groupBy(sql`to_char(${registrations.createdAt}, 'YYYY-MM')`)
+      .orderBy(sql`to_char(${registrations.createdAt}, 'YYYY-MM')`);
+
     return {
       totalEvents,
+      publishedEvents,
       totalRegistrations,
       totalRevenue,
       recentRegistrations,
+      upcomingEvents,
+      ticketDistribution,
+      monthlyRevenue,
     };
   }),
 

@@ -131,12 +131,12 @@ async function EventDetails({ id }: { id: number }) {
         </div>
 
         {/* Action Buttons */}
-        <EventActionButtons 
+        <EventActionButtons
           status={event.status}
           eventId={event.id}
           eventName={event.name}
-          generalPrice={event.generalTicketPrice}
-          vipPrice={event.vipTicketPrice}
+          generalPrice={Number(event.generalTicketPrice)}
+          vipPrice={Number(event.vipTicketPrice)}
           vipPerks={event.vipPerks}
         />
       </div>
@@ -156,4 +156,4 @@ export default async function EventPage({
       <EventDetails id={id} />
     </Suspense>
   );
-} 
+}
