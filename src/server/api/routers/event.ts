@@ -276,11 +276,13 @@ export const eventRouter = createTRPCRouter({
           registrationId: ticket.registrationId,
         });
 
+        // Return ticket details including the QR code data URL
         return {
           ticketId: ticket.ticketNumber,
           eventName: event.name,
           ticketType: registration.ticketType,
           purchaseDate: registration.createdAt,
+          qrCodeUrl: ticket.qrCode,
         };
       } catch (error) {
         console.error("Detailed verification error:", {
