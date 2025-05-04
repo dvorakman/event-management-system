@@ -78,8 +78,7 @@ export function TicketDisplay({ ticket }: TicketDisplayProps) {
 
         <div className="flex justify-center pt-4">
           <Button asChild>
-            <Link href="/dashboard">View All My Tickets</Link>
-            {/* Update Link if needed for user dashboard */}
+            <Link href="/dashboard?tab=tickets">View All My Tickets</Link>
           </Button>
         </div>
       </CardContent>
