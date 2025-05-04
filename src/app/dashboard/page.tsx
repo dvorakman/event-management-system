@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
@@ -10,16 +11,67 @@ import { Loader2 } from "lucide-react";
 import { api } from "~/trpc/react";
 import { redirect } from "next/navigation";
 
-export default function UserDashboardPage() {
-  const { isLoaded, isSignedIn, user } = useUser();
-  const { data: dbUser, isLoading: isUserLoading } =
-    api.user.getCurrentUser.useQuery();
-  const [activeTab, setActiveTab] = useState("overview");
+// Define type for ticket data fetched from backend
+interface UserTicket {
+  registrationId: number;
+  eventId: number;
+  eventName: string;
+  eventStartDate: Date;
+  eventLocation: string;
+  ticketType: "general" | "vip";
+  purchaseDate: Date;
+  ticketNumber: string | null; // Ticket might not exist yet
+  qrCodeUrl: string | null; // QR code might not exist yet
+}
 
-  // Handle loading state
-  if (!isLoaded || isUserLoading) {
+export default function UserDashboardPage() {
+  // --- HOOKS MOVED TO TOP ---
+  const { isLoaded, isSignedIn, user } = useUser();
+  const searchParams = useSearchParams();
+  const initialTab =
+    searchParams.get("tab") === "tickets" ? "tickets" : "overview"; // Check for ?tab=tickets
+
+  const { data: dbUser, isLoading: isUserLoading } =
+    api.user.getCurrentUser.useQuery(undefined, {
+      enabled: isLoaded && isSignedIn, // Fetch only when Clerk is loaded and user signed in
+      refetchOnWindowFocus: true,
+    });
+
+  const {
+    data: ticketsData,
+    isLoading: isLoadingTickets,
+    error: ticketsError,
+  } = api.user.getMyTickets.useQuery(undefined, {
+    enabled: isLoaded && isSignedIn, // Only fetch if logged in
+  });
+
+  const [activeTab, setActiveTab] = useState(initialTab);
+
+  // Update active tab if URL changes
+  useEffect(() => {
+    const currentTab = searchParams.get("tab");
+    if (
+      currentTab === "tickets" ||
+      currentTab === "notifications" ||
+      currentTab === "overview"
+    ) {
+      setActiveTab(currentTab);
+    } else if (currentTab && activeTab !== "overview") {
+      // Prevent infinite loop if invalid tab
+      // Optional: handle invalid tab param, maybe default to overview
+      setActiveTab("overview");
+    }
+    // Only re-run if searchParams or initial activeTab changes
+  }, [searchParams, activeTab]);
+  // --- END OF HOOKS ---
+
+  // --- CONDITIONAL RETURNS MOVED AFTER HOOKS ---
+  // Handle loading state for auth and initial user data fetch
+  if (!isLoaded || (isSignedIn && isUserLoading && !dbUser)) {
+    // Adjust loading condition slightly
     return (
       <div className="flex min-h-screen items-center justify-center">
+        {/* Loading spinner */}
         <div className="text-center">
           <div className="mb-4 h-12 w-12 animate-spin rounded-full border-4 border-blue-600 border-t-transparent" />
           <p className="text-lg text-gray-600">Loading dashboard...</p>
@@ -28,14 +80,35 @@ export default function UserDashboardPage() {
     );
   }
 
-  // Handle not signed in state
+  // Handle not signed in state AFTER hooks
   if (!isSignedIn) {
-    return redirect("/sign-in");
+    // Use effect for client-side redirect to avoid issues during render
+    useEffect(() => {
+      redirect("/sign-in?redirect_url=/dashboard");
+    }, []);
+    return null; // Render nothing while redirecting
   }
 
-  // Redirect organizers/admins to their dashboard
+  // Redirect organizers/admins AFTER hooks and ensuring dbUser is loaded
   if (dbUser?.role === "organizer" || dbUser?.role === "admin") {
-    return redirect("/organizer/dashboard");
+    // Use effect for client-side redirect
+    useEffect(() => {
+      redirect("/organizer/dashboard");
+    }, []);
+    return null; // Render nothing while redirecting
+  }
+  // --- END OF CONDITIONAL RETURNS ---
+
+  // Ensure user object exists before accessing properties
+  if (!user) {
+    // This case should ideally be covered by !isSignedIn, but adding for safety
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <p className="text-lg text-red-600">
+          User data not available. Please try signing in again.
+        </p>
+      </div>
+    );
   }
 
   return (
@@ -48,7 +121,7 @@ export default function UserDashboardPage() {
       </div>
 
       <Tabs
-        defaultValue="overview"
+        defaultValue={initialTab} // Use initialTab here
         value={activeTab}
         onValueChange={setActiveTab}
         className="w-full"
@@ -93,11 +166,13 @@ export default function UserDashboardPage() {
                     Browse All Events
                   </Button>
                 </Link>
-                <Link href="/tickets">
-                  <Button variant="outline" className="w-full">
-                    View My Tickets
-                  </Button>
-                </Link>
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => setActiveTab("tickets")}
+                >
+                  View My Tickets
+                </Button>
                 <Link href="/become-organizer">
                   <Button variant="outline" className="w-full">
                     Become an Organizer
@@ -130,15 +205,87 @@ export default function UserDashboardPage() {
               <CardTitle>Your Tickets</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="py-8 text-center text-muted-foreground">
-                You don't have any tickets yet. Browse events and register to
-                see your tickets here.
-              </p>
-              <div className="flex justify-center">
-                <Link href="/events">
-                  <Button>Find Events</Button>
-                </Link>
-              </div>
+              {isLoadingTickets ? (
+                <div className="flex justify-center py-12">
+                  <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                </div>
+              ) : ticketsError ? (
+                <p className="text-center text-red-600">
+                  Error loading tickets: {ticketsError.message}
+                </p>
+              ) : !ticketsData || ticketsData.length === 0 ? (
+                <>
+                  <p className="py-8 text-center text-muted-foreground">
+                    You don't have any tickets yet. Browse events and register
+                    to see your tickets here.
+                  </p>
+                  <div className="flex justify-center">
+                    <Link href="/events">
+                      <Button>Find Events</Button>
+                    </Link>
+                  </div>
+                </>
+              ) : (
+                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                  {ticketsData.map((ticket) => (
+                    <Card
+                      key={ticket.registrationId}
+                      className="overflow-hidden"
+                    >
+                      <CardHeader>
+                        <CardTitle className="line-clamp-1 text-lg">
+                          {ticket.eventName}
+                        </CardTitle>
+                        <p className="text-sm text-muted-foreground">
+                          Ticket #{ticket.ticketNumber || "N/A"}
+                        </p>
+                      </CardHeader>
+                      <CardContent className="space-y-2">
+                        <p className="text-sm">
+                          <span className="font-medium">Date:</span>{" "}
+                          {ticket.eventStartDate
+                            ? new Date(
+                                ticket.eventStartDate,
+                              ).toLocaleDateString()
+                            : "N/A"}
+                        </p>
+                        <p className="text-sm">
+                          <span className="font-medium">Location:</span>{" "}
+                          {ticket.eventLocation}
+                        </p>
+                        <p className="text-sm">
+                          <span className="font-medium">Type:</span>{" "}
+                          <span className="capitalize">
+                            {ticket.ticketType}
+                          </span>
+                        </p>
+                        {/* Replace QR code text with a visual placeholder */}
+                        <div className="mt-4 flex flex-col items-center border-t pt-4">
+                          {ticket.qrCodeUrl ? (
+                            <>
+                              {/* Simple visual placeholder for QR code */}
+                              <div className="mb-2 h-24 w-24 bg-muted p-1">
+                                <div className="h-full w-full border border-dashed border-muted-foreground"></div>
+                              </div>
+                              <p className="text-center text-xs text-muted-foreground">
+                                Scan QR code at event entry
+                              </p>
+                            </>
+                          ) : (
+                            <p className="text-center text-sm text-muted-foreground">
+                              QR Code not yet available.
+                            </p>
+                          )}
+                          {/* Link to a future ticket detail page can remain commented out */}
+                          {/* <Link href={`/tickets/${ticket.registrationId}`}>
+                              <Button variant="outline" size="sm">View Full Ticket</Button>
+                          </Link> */}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
