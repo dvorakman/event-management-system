@@ -12,11 +12,13 @@ for (const file of envFiles) {
   }
 }
 
-// If DATABASE_URL is still not set, try to use a default value
-const dbUrl = process.env.DATABASE_URL || process.env.NEON_DATABASE_URL || "";
+// Ensure DATABASE_URL or NEON_DATABASE_URL is set
+const dbUrl = process.env.DATABASE_URL || process.env.NEON_DATABASE_URL;
 if (!dbUrl) {
-  console.warn("Warning: No DATABASE_URL found in environment variables. Please check your .env files.");
-  console.warn("Using default Docker Compose PostgreSQL connection if available...");
+  throw new Error(
+    "Critical: No DATABASE_URL or NEON_DATABASE_URL found in environment variables. " +
+    "Please set one of these variables in your .env file or environment configuration."
+  );
 }
 
 export default defineConfig({
