@@ -11,6 +11,7 @@ import {
   text,
   decimal,
   boolean,
+  pgEnum,
 } from "drizzle-orm/pg-core";
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 
@@ -24,23 +25,31 @@ export const createTable = pgTableCreator(
   (name) => `event-management-system_${name}`,
 );
 
+export const userRole = pgEnum('user_role', ['user', 'organizer', 'admin']);
+
 // Users table (although we're using Clerk for auth, we still need to store some user data)
 export const users = createTable(
   "user",
   {
-    id: text("id").primaryKey(), // Using Clerk's user ID
+    id: text("id").primaryKey(), // Clerk's user ID
     email: text("email").notNull(),
-    name: text("name").notNull(),
-    role: text("role", { enum: ["user", "organizer", "admin"] })
-      .default("user")
-      .notNull(),
+    firstName: text("first_name"),
+    lastName: text("last_name"),
+    username: text("username"),
+    profileImage: text("profile_image"),
+    role: userRole('role').default('user').notNull(),
+    externalId: text("external_id"),
+    metadata: text("metadata"), // JSON string for additional Clerk metadata
+    lastSignInAt: timestamp("last_sign_in_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true })
       .default(sql`CURRENT_TIMESTAMP`)
       .notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).$onUpdate(() => new Date()),
+    becameOrganizerAt: timestamp("became_organizer_at"),
   },
   (table) => ({
     emailIdx: index("email_idx").on(table.email),
+    usernameIdx: index("username_idx").on(table.username),
   }),
 );
 
@@ -212,3 +221,8 @@ export const queries = {
   notifications,
   posts,
 } as const;
+
+// Schema type exports
+export type User = typeof users.$inferSelect;
+export type NewUser = typeof users.$inferInsert;
+export type UserRole = "user" | "organizer" | "admin";

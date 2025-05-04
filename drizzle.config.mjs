@@ -1,23 +1,33 @@
-import * as dotenv from "dotenv";
-dotenv.config();
+import { defineConfig } from "drizzle-kit";
+import { config } from "dotenv";
+import * as fs from "fs";
+import * as path from "path";
 
-// Get database URL from environment variables
-const databaseUrl = process.env.NEON_DATABASE_URL ?? process.env.DATABASE_URL;
+// Try to load environment variables from various possible files
+const envFiles = ['.env.local', '.env', '.env.development'];
+for (const file of envFiles) {
+  if (fs.existsSync(path.resolve(process.cwd(), file))) {
+    console.log(`Loading environment from ${file}`);
+    config({ path: file });
+  }
+}
 
-if (!databaseUrl) {
+// Ensure DATABASE_URL or NEON_DATABASE_URL is set
+const dbUrl = process.env.DATABASE_URL || process.env.NEON_DATABASE_URL;
+if (!dbUrl) {
   throw new Error(
-    "No database URL provided. Set either NEON_DATABASE_URL (for production) or DATABASE_URL (for local development)",
+    "Critical: No DATABASE_URL or NEON_DATABASE_URL found in environment variables. " +
+    "Please set one of these variables in your .env file or environment configuration."
   );
 }
 
-/** @type {import("drizzle-kit").Config} */
-export default {
+export default defineConfig({
   schema: "./src/server/db/schema.ts",
-  out: "./drizzle/migrations",
+  out: "./drizzle",
   dialect: "postgresql",
   dbCredentials: {
-    url: databaseUrl,
+    url: dbUrl || "postgresql://postgres:postgres@localhost:5432/postgres",
   },
-  tablesFilter: ["event-management-system_*"],
+  verbose: true,
   strict: true,
-};
+}); 

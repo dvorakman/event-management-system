@@ -6,11 +6,16 @@
  * TL;DR - This is where all the tRPC server stuff is created and plugged in. The pieces you will
  * need to use are documented accordingly near the end.
  */
-import { initTRPC } from "@trpc/server";
+import { initTRPC, TRPCError } from "@trpc/server";
 import superjson from "superjson";
 import { ZodError } from "zod";
+import { auth, currentUser } from "@clerk/nextjs/server";
+import { eq } from "drizzle-orm";
 
 import { db } from "~/server/db";
+import { users } from "~/server/db/schema";
+import { syncUser } from "~/server/auth/sync-user";
+import { env } from "~/env";
 
 /**
  * 1. CONTEXT
@@ -25,10 +30,87 @@ import { db } from "~/server/db";
  * @see https://trpc.io/docs/server/context
  */
 export const createTRPCContext = async (opts: { headers: Headers }) => {
-  return {
-    db,
-    ...opts,
-  };
+  // Get auth info from headers directly
+  const authHeader = opts.headers.get("authorization");
+  console.log("[TRPC Context] Auth header:", {
+    hasAuthHeader: !!authHeader,
+    authHeader: authHeader ? `${authHeader.substring(0, 15)}...` : null,
+  });
+
+  // Get auth session using Clerk's auth() helper
+  const session = await auth();
+  const userId = session.userId;
+
+  console.log("[TRPC Context] Auth state:", {
+    userId,
+    hasHeaders: !!opts.headers,
+    sessionId: session.sessionId,
+  });
+
+  // If there's no userId, return minimal context
+  if (!userId) {
+    console.log("[TRPC Context] No userId found");
+    return {
+      db,
+      headers: opts.headers,
+    };
+  }
+
+  // Get the current user from Clerk
+  const clerkUser = await currentUser();
+  console.log("[TRPC Context] Clerk user:", {
+    id: clerkUser?.id,
+    email: clerkUser?.emailAddresses?.[0]?.emailAddress,
+  });
+
+  if (!clerkUser) {
+    console.log("[TRPC Context] No Clerk user found");
+    return {
+      db,
+      userId,
+      headers: opts.headers,
+    };
+  }
+
+  try {
+    // Always sync in development/preview, or if user doesn't exist in database
+    const dbUser = await db.query.users.findFirst({
+      where: eq(users.id, userId),
+    });
+    console.log("[TRPC Context] DB user:", { id: dbUser?.id });
+
+    const isDevelopment = !process.env.VERCEL_ENV || process.env.VERCEL_ENV !== "production";
+    console.log("[TRPC Context] Environment:", {
+      isDevelopment,
+      VERCEL_ENV: process.env.VERCEL_ENV,
+    });
+
+    if (!dbUser || isDevelopment) {
+      console.log("[TRPC Context] Syncing user from Clerk");
+      const syncedUser = await syncUser(clerkUser);
+      return {
+        db,
+        userId,
+        dbUser: syncedUser,
+        headers: opts.headers,
+      };
+    }
+
+    return {
+      db,
+      userId,
+      dbUser,
+      headers: opts.headers,
+    };
+  } catch (error) {
+    console.error("[TRPC Context] Database error:", error);
+    // Return basic context if database operations fail
+    return {
+      db,
+      userId,
+      headers: opts.headers,
+    };
+  }
 };
 
 /**
@@ -82,7 +164,9 @@ export const createTRPCRouter = t.router;
 const timingMiddleware = t.middleware(async ({ next, path }) => {
   const start = Date.now();
 
-  if (t._config.isDev) {
+  const isDevelopment =
+    !process.env.VERCEL_ENV || process.env.VERCEL_ENV !== "production";
+  if (isDevelopment) {
     // artificial delay in dev
     const waitMs = Math.floor(Math.random() * 400) + 100;
     await new Promise((resolve) => setTimeout(resolve, waitMs));
@@ -104,3 +188,36 @@ const timingMiddleware = t.middleware(async ({ next, path }) => {
  * are logged in.
  */
 export const publicProcedure = t.procedure.use(timingMiddleware);
+
+/**
+ * Protected (authenticated) procedure
+ *
+ * This is the base piece you use to build new queries and mutations on your tRPC API that require
+ * authentication. It guarantees that a user must be logged in to access the route.
+ */
+export const protectedProcedure = t.procedure
+  .use(timingMiddleware)
+  .use(async ({ ctx, next }) => {
+    console.log("[TRPC Protected] Context:", {
+      userId: ctx.userId,
+      hasDbUser: !!ctx.dbUser,
+      headers: Object.fromEntries(ctx.headers.entries()),
+    });
+
+    if (!ctx.userId || !ctx.dbUser) {
+      console.log("[TRPC Protected] No userId or dbUser found");
+      throw new TRPCError({
+        code: "UNAUTHORIZED",
+        message: "You must be logged in to access this resource",
+      });
+    }
+
+    return next({
+      ctx: {
+        ...ctx,
+        // Ensure these are available in the procedure
+        userId: ctx.userId,
+        dbUser: ctx.dbUser,
+      },
+    });
+  });
