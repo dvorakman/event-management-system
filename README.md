@@ -196,48 +196,7 @@ This project uses [Clerk](https://clerk.com/) for authentication and user manage
 
 2. **Authentication Flow**
 
-   The authentication flow is handled by Clerk's middleware, which protects routes based on authentication status:
-
-   - Public routes (accessible without authentication): Home page, Events listing, Sign-in, Sign-up
-   - Protected routes: User profile, Organizer dashboard, Tickets, etc.
-
-3. **Middleware Implementation**
-
-   The application uses Clerk's recommended `clerkMiddleware()` approach for route protection:
-
-   ```typescript
-   import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
-
-   // Define public routes that don't require authentication
-   const publicRoutes = ["/", "/events", "/sign-in", "/sign-up", "/api/trpc"];
-   const isPublicRoute = createRouteMatcher(
-     publicRoutes.map((route) =>
-       route === "/api/trpc" ? `${route}(.*)` : route,
-     ),
-   );
-
-   export default clerkMiddleware(async (auth, req) => {
-     // If the route is not public, protect it
-     if (!isPublicRoute(req)) {
-       await auth().protect();
-     }
-   });
-   ```
-
-4. **Authentication Components**
-
-   Clerk provides various components for managing authentication:
-
-   - `<SignIn />`: Pre-built sign-in component
-   - `<SignUp />`: Pre-built sign-up component
-   - `<UserButton />`: User profile and account management
-   - `<SignedIn>` and `<SignedOut>`: Conditional rendering based on authentication status
-
-### Authentication Development Notes
-
-- The project initially used the deprecated `authMiddleware` but has been updated to use the new `clerkMiddleware()` approach.
-- For testing locally, you can use Clerk's development keys or "keyless mode" for faster development.
-- Always test authentication flows after making changes to the middleware.
+   The authentication flow is handled by Clerk's middleware, which protects routes based on authentication status.
 
 ## Deployment on Vercel
 

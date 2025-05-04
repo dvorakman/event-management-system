@@ -2,14 +2,14 @@ import { db } from "./index";
 import { users } from "./schema";
 import { eq } from "drizzle-orm";
 import { config } from "dotenv";
-import { createClerkClient } from "@clerk/clerk-sdk-node";
-import type { OrganizationMembership } from "@clerk/clerk-sdk-node";
+import { clerkClient } from "@clerk/nextjs/server";
+import type { OrganizationMembershipResource } from "@clerk/types";
 
 // Load environment variables from .env file
 config();
 
 const DEV_ORG_ID = "org_2uhiVWqO42Gg9QpwFMtarlywYwA";
-const clerk = createClerkClient({ secretKey: process.env.CLERK_SECRET_KEY });
+const clerk = clerkClient;
 
 console.log(
   "Using Clerk Secret Key:",
@@ -20,16 +20,15 @@ async function fetchUserOrganizations(userId: string) {
   console.log(`Fetching organization memberships for user ${userId}`);
 
   try {
-    const { data: memberships } =
-      await clerk.users.getOrganizationMembershipList({
-        userId: userId,
-      });
+    const memberships = await clerk.users.getOrganizationMembershipList({
+      userId: userId,
+    });
 
     console.log(`Found ${memberships.length} organization memberships`);
 
     // Find membership in the development organization
     const devOrgMembership = memberships.find(
-      (m: OrganizationMembership) => m.organization.id === DEV_ORG_ID,
+      (m: OrganizationMembershipResource) => m.organization.id === DEV_ORG_ID,
     );
 
     if (devOrgMembership) {
@@ -45,7 +44,7 @@ async function fetchUserOrganizations(userId: string) {
   }
 }
 
-function determineUserRole(membership: OrganizationMembership | null) {
+function determineUserRole(membership: OrganizationMembershipResource | null) {
   // Always default to "user" role for new accounts in development mode
   // unless explicitly being assigned a different role through proper channels
   if (
@@ -88,7 +87,7 @@ function determineUserRole(membership: OrganizationMembership | null) {
 
 async function fetchClerkUsers() {
   try {
-    const { data: users } = await clerk.users.getUserList();
+    const users = await clerk.users.getUserList();
     console.log(`Found ${users.length} users in Clerk`);
     return users;
   } catch (error) {
