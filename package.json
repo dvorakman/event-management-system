@@ -12,7 +12,6 @@
     "db:reset:preview": "bun run scripts/reset-preview-db.ts",
     "db:push": "drizzle-kit push --config=drizzle.config.mjs",
     "db:studio": "drizzle-kit studio --config=drizzle.config.mjs",
-    "db:start": "node scripts/start-db.mjs",
     "dev": "next dev --turbo",
     "dev:webpack": "next dev",
     "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,mdx}\" --cache",
