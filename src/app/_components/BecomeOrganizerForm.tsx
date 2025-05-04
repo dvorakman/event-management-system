@@ -19,7 +19,7 @@ export function BecomeOrganizerForm() {
         title: "Success!",
         description: "You are now an organizer. You can start creating events.",
       });
-      router.refresh();
+      router.push("/organizer/dashboard");
     },
     onError: (error) => {
       toast({
