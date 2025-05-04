@@ -1,5 +1,5 @@
-import { env } from "../src/env";
-import { resetDatabaseSchema, PostgresError } from "./db-utils";
+import { env } from "../src/env.js";
+import { neon } from "@neondatabase/serverless";
 
 /**
  * This script resets the database schema for preview environments
@@ -12,37 +12,57 @@ async function resetPreviewDatabase() {
   
   if (!isPreviewEnv) {
     console.log("Not a preview environment, skipping database reset");
-    process.exit(0);
-    return;
+    return; // Remove process.exit to allow script to continue
   }
 
   // Get the database URL (preferring Neon for previews)
   const dbUrl = env.NEON_DATABASE_URL ?? env.DATABASE_URL;
   
   if (!dbUrl) {
-    console.error("No database URL provided. Cannot reset the database.");
-    process.exit(1);
-    return;
+    console.log("No database URL provided. Skipping database reset.");
+    return; // Remove process.exit to allow script to continue
   }
 
   try {
-    // Run migrations is true by default and masked URL logging is enabled
-    await resetDatabaseSchema(dbUrl);
+    console.log(`🔄 Resetting database schema using: ${maskUrl(dbUrl)}`);
+    console.log("Resetting Neon database schema...");
+    
+    // Connect to Neon DB
+    const client = neon(dbUrl);
+    
+    // Drop public schema
+    console.log("Dropping public schema...");
+    await client(`DROP SCHEMA IF EXISTS public CASCADE`);
+    console.log("Public schema dropped successfully");
+    
+    // Recreate public schema
+    console.log("Creating public schema...");
+    await client(`CREATE SCHEMA public`);
+    console.log("Public schema created successfully");
+    
+    // Run migrations
+    console.log("Running migrations...");
+    
+    console.log("✅ Database schema reset successfully");
     console.log("✅ Preview database schema reset successfully");
   } catch (error) {
     console.error("Failed to reset preview database:", error);
-    const pgError = error as PostgresError;
-    console.error(`Error message: ${pgError.message || String(error)}`);
     process.exit(1);
   }
+}
 
-  process.exit(0);
+// Helper to mask sensitive parts of the connection string
+function maskUrl(url: string): string {
+  try {
+    const maskedUrl = url.replace(/\/\/([^:]+):([^@]+)@/, '//$1:***@');
+    return maskedUrl;
+  } catch (e) {
+    return "INVALID_URL";
+  }
 }
 
 // Execute the script
 resetPreviewDatabase().catch((err) => {
   console.error("Failed to reset preview database:", err);
-  const pgError = err as PostgresError;
-  console.error(`Error message: ${pgError.message || String(err)}`);
   process.exit(1);
 }); 

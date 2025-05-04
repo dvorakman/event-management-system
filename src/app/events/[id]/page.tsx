@@ -4,6 +4,7 @@ import { api } from "~/trpc/server";
 import { Button } from "~/components/ui/button";
 import { Skeleton } from "~/components/ui/skeleton";
 import { EventActionButtons } from "~/components/event/EventActionButtons";
+import type { Metadata } from "next";
 
 // Loading component for event details
 function EventDetailsLoading() {
@@ -144,11 +145,12 @@ async function EventDetails({ id }: { id: number }) {
   );
 }
 
-export default async function EventPage({
-  params,
-}: {
+type Props = {
   params: { id: string };
-}) {
+  searchParams: { [key: string]: string | string[] | undefined };
+};
+
+export default async function EventPage({ params }: Props) {
   const id = parseInt(params.id, 10);
 
   return (
