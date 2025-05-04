@@ -86,6 +86,12 @@ This project uses Docker Compose for a consistent and simplified local developme
     ```
     Then, access Drizzle Studio via the URL provided in the terminal (likely using `localhost` and the forwarded port).
 
+*   **Troubleshooting Package Issues:**
+    *   **Packages not reflected after build:** If you've installed packages (either locally and rebuilt, or using `docker-compose exec app bun install ...`) but the running application still reports them as missing (`Module not found`), it might be due to a stale Docker volume cache for `node_modules`. To fix this:
+        1.  Stop and remove containers *and volumes*: `docker-compose down -v`
+        2.  Rebuild and restart: `docker-compose up --build -d`
+        3.  Re-run migrations if needed: `docker-compose exec app bun run db:migrate`
+
 ## Database Configuration (Overview)
 
 This project supports:

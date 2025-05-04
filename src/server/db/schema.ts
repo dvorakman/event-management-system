@@ -27,29 +27,30 @@ export const createTable = pgTableCreator(
 
 export const userRole = pgEnum('user_role', ['user', 'organizer', 'admin']);
 
-// Users table (although we're using Clerk for auth, we still need to store some user data)
+// Users table - Storing only essential app-specific data linked to Clerk user
 export const users = createTable(
   "user",
   {
     id: text("id").primaryKey(), // Clerk's user ID
-    email: text("email").notNull(),
-    firstName: text("first_name"),
-    lastName: text("last_name"),
-    username: text("username"),
-    profileImage: text("profile_image"),
-    role: userRole('role').default('user').notNull(),
-    externalId: text("external_id"),
-    metadata: text("metadata"), // JSON string for additional Clerk metadata
-    lastSignInAt: timestamp("last_sign_in_at", { withTimezone: true }),
+    // email: text("email").notNull(), // Managed by Clerk
+    // firstName: text("first_name"), // Managed by Clerk
+    // lastName: text("last_name"), // Managed by Clerk
+    // username: text("username"), // Managed by Clerk (or via publicMetadata)
+    // profileImage: text("profile_image"), // Managed by Clerk
+    role: userRole('role').default('user').notNull(), // Application-specific role
+    // externalId: text("external_id"), // Usually Clerk ID is sufficient
+    // metadata: text("metadata"), // Use Clerk's metadata instead
+    // lastSignInAt: timestamp("last_sign_in_at", { withTimezone: true }), // Available via Clerk
     createdAt: timestamp("created_at", { withTimezone: true })
       .default(sql`CURRENT_TIMESTAMP`)
-      .notNull(),
+      .notNull(), // When the user record was created in our system
     updatedAt: timestamp("updated_at", { withTimezone: true }).$onUpdate(() => new Date()),
-    becameOrganizerAt: timestamp("became_organizer_at"),
+    becameOrganizerAt: timestamp("became_organizer_at"), // App-specific timestamp
   },
   (table) => ({
-    emailIdx: index("email_idx").on(table.email),
-    usernameIdx: index("username_idx").on(table.username),
+    // emailIdx: index("email_idx").on(table.email), // Remove indexes on removed fields
+    // usernameIdx: index("username_idx").on(table.username), // Remove indexes on removed fields
+    roleIdx: index("role_idx").on(table.role), // Add index for role if needed
   }),
 );
 
