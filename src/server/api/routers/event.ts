@@ -27,6 +27,7 @@ import {
 import { nanoid } from "nanoid";
 import Stripe from "stripe";
 import QRCode from "qrcode";
+import { sendEmail } from "~/server/email/sendgrid";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY ?? "", {
   apiVersion: "2025-03-31.basil",
@@ -82,11 +83,15 @@ export const eventRouter = createTRPCRouter({
 
       // Apply price range filters
       if (input?.minPrice !== undefined) {
-        conditions.push(gte(events.generalTicketPrice, input.minPrice));
+        conditions.push(
+          gte(events.generalTicketPrice, input.minPrice.toString()),
+        );
       }
 
       if (input?.maxPrice !== undefined) {
-        conditions.push(lte(events.generalTicketPrice, input.maxPrice));
+        conditions.push(
+          lte(events.generalTicketPrice, input.maxPrice.toString()),
+        );
       }
 
       // Apply cursor-based pagination
@@ -163,7 +168,7 @@ export const eventRouter = createTRPCRouter({
         );
 
         // Get the authenticated user's ID
-        const userId = ctx.userId as string;
+        const userId = ctx.userId;
         console.log("Authenticated user ID:", userId);
 
         // Verify the payment session
@@ -173,8 +178,13 @@ export const eventRouter = createTRPCRouter({
           })
           .catch((error) => {
             console.error("Stripe session retrieval error:", error);
+            if (error instanceof Error) {
+              throw new Error(
+                `Failed to retrieve Stripe session: ${error.message}`,
+              );
+            }
             throw new Error(
-              `Failed to retrieve Stripe session: ${error.message}`,
+              "Failed to retrieve Stripe session due to an unknown error.",
             );
           });
 
@@ -234,7 +244,7 @@ export const eventRouter = createTRPCRouter({
           amount: session.amount_total ? session.amount_total / 100 : 0,
         });
 
-        const [registration] = await ctx.db
+        const registrationRows = await ctx.db
           .insert(registrations)
           .values({
             userId,
@@ -249,14 +259,26 @@ export const eventRouter = createTRPCRouter({
           .returning()
           .catch((error) => {
             console.error("Registration creation error:", error);
-            throw new Error(`Failed to create registration: ${error.message}`);
+            if (error instanceof Error) {
+              throw new Error(
+                `Failed to create registration: ${error.message}`,
+              );
+            }
+            throw new Error(
+              "Failed to create registration due to an unknown error.",
+            );
           });
+
+        if (!registrationRows || registrationRows.length === 0) {
+          throw new Error("Registration creation failed or no data returned.");
+        }
+        const registration = registrationRows[0];
 
         console.log("Created registration:", registration);
 
         // Create ticket
-        console.log("Creating ticket for registration:", registration.id);
-        const [ticket] = await ctx.db
+        console.log("Creating ticket for registration:", registration?.id);
+        const ticketRows = await ctx.db
           .insert(tickets)
           .values({
             registrationId: registration.id,
@@ -268,19 +290,115 @@ export const eventRouter = createTRPCRouter({
           .returning()
           .catch((error) => {
             console.error("Ticket creation error:", error);
-            throw new Error(`Failed to create ticket: ${error.message}`);
+            if (error instanceof Error) {
+              throw new Error(`Failed to create ticket: ${error.message}`);
+            }
+            throw new Error("Failed to create ticket due to an unknown error.");
           });
 
+        if (!ticketRows || ticketRows.length === 0) {
+          throw new Error("Ticket creation failed or no data returned.");
+        }
+        const ticket = ticketRows[0];
+
         console.log("Successfully created ticket:", {
-          ticketId: ticket.ticketNumber,
-          registrationId: ticket.registrationId,
+          ticketId: ticket?.ticketNumber,
+          registrationId: ticket?.registrationId,
         });
 
+        // Fetch user's email
+        const user = await ctx.db.query.users.findFirst({
+          where: eq(users.id, userId),
+          columns: {
+            email: true,
+            name: true, // Fetch name for personalization
+          },
+        });
+
+        // Ensure event, user, registration, and ticket are defined before proceeding to email
+        if (event && user?.email && registration && ticket && ticket.qrCode) {
+          const emailSubject = `Your Ticket for ${event.name}!`;
+
+          // Prepare QR code for CID embedding
+          const qrCodeBase64 = ticket.qrCode.split(",")[1]; // Get base64 part after "data:image/png;base64,"
+          const qrAttachment = {
+            content: qrCodeBase64 ?? "", // Ensure content is not undefined
+            filename: "qrcode.png",
+            type: "image/png",
+            disposition: "inline" as const, // Use "as const" for literal type
+            content_id: "ticketQRCode", // This ID will be used in the img src
+          };
+
+          const emailHtml = `
+            <h1>Thank you for your purchase, ${user.name ?? "User"}!</h1>
+            <p>You have successfully registered for the event: <strong>${event.name}</strong>.</p>
+            <p><strong>Ticket Details:</strong></p>
+            <ul>
+              <li>Ticket Number: ${ticket.ticketNumber}</li>
+              <li>Ticket Type: ${registration.ticketType}</li>
+              <li>Purchase Date: ${registration.createdAt.toLocaleDateString()}</li>
+              <li>Event Date: ${event.startDate.toLocaleDateString()}</li>
+            </ul>
+            <p>Your QR code for entry:</p>
+            <div style="margin: 10px 0;">
+              <img src="cid:ticketQRCode" alt="Your Ticket QR Code" style="width: 200px; height: 200px; display: block;" />
+            </div>
+            <p>We look forward to seeing you there!</p>
+          `;
+          const emailText = `
+            Thank you for your purchase, ${user.name ?? "User"}!
+            You have successfully registered for the event: ${event.name}.
+            Ticket Details:
+            - Ticket Number: ${ticket.ticketNumber}
+            - Ticket Type: ${registration.ticketType}
+            - Purchase Date: ${registration.createdAt.toLocaleDateString()}
+            - Event Date: ${event.startDate.toLocaleDateString()}
+            Your QR code is attached to this email.
+            We look forward to seeing you there!
+          `;
+
+          try {
+            await sendEmail({
+              to: user.email,
+              subject: emailSubject,
+              html: emailHtml,
+              text: emailText,
+              attachments: [qrAttachment],
+            });
+            console.log(
+              `Confirmation email sent to ${user.email} for event ${event.id}`,
+            );
+          } catch (emailError) {
+            console.error(
+              `Failed to send confirmation email to ${user.email}: `,
+              emailError,
+            );
+            // Decide if you want to throw an error or just log it
+            // For now, we'll just log it and not interrupt the ticket return
+          }
+        } else {
+          console.warn(
+            `User email not found for userId: ${userId}. Cannot send confirmation email. Or other critical data missing.`,
+          );
+        }
+
+        // Final check before returning, ensuring essential objects are defined
+        if (!event || !registration || !ticket) {
+          console.error(
+            "Critical data missing for return (event, registration, or ticket undefined).",
+          );
+          throw new Error(
+            "Failed to process payment fully, critical data missing.",
+          );
+        }
+
+        // Return ticket details including the QR code data URL
         return {
           ticketId: ticket.ticketNumber,
           eventName: event.name,
           ticketType: registration.ticketType,
           purchaseDate: registration.createdAt,
+          qrCodeUrl: ticket.qrCode,
         };
       } catch (error) {
         console.error("Detailed verification error:", {
@@ -362,7 +480,7 @@ export const eventRouter = createTRPCRouter({
 
   // Get organizer statistics
   getOrganizerStats: protectedProcedure.query(async ({ ctx }) => {
-    const userId = ctx.userId as string;
+    const userId = ctx.userId;
 
     // Get total events
     const eventsResult = await ctx.db
@@ -415,7 +533,7 @@ export const eventRouter = createTRPCRouter({
 
   // Get events for an organizer
   getOrganizerEvents: protectedProcedure.query(async ({ ctx }) => {
-    const userId = ctx.userId as string;
+    const userId = ctx.userId;
 
     // Get organizer events with registration counts
     const organizedEvents = await ctx.db
@@ -500,7 +618,7 @@ export const eventRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const userId = ctx.userId as string;
+      const userId = ctx.userId;
 
       // Ensure user is an organizer
       if (
