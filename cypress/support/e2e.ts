@@ -64,9 +64,9 @@ Cypress.on("test:after:run", (test, runnable) => {
 
 // Custom viewport sizes for responsive testing
 const viewports = {
-  mobile: [375, 667],
-  tablet: [768, 1024],
-  desktop: [1280, 800],
+  mobile: [375, 667] as [number, number],
+  tablet: [768, 1024] as [number, number],
+  desktop: [1280, 800] as [number, number],
 };
 
 // Add commands for responsive testing

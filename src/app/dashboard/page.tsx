@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
@@ -24,7 +24,21 @@ interface UserTicket {
   qrCodeUrl: string | null; // QR code might not exist yet
 }
 
-export default function UserDashboardPage() {
+// Loading component
+function DashboardLoading() {
+  return (
+    <div className="flex min-h-screen items-center justify-center">
+      {/* Loading spinner */}
+      <div className="text-center">
+        <div className="mb-4 h-12 w-12 animate-spin rounded-full border-4 border-blue-600 border-t-transparent" />
+        <p className="text-lg text-gray-600">Loading dashboard...</p>
+      </div>
+    </div>
+  );
+}
+
+// Main dashboard component that uses hooks
+function DashboardContent() {
   // --- HOOKS MOVED TO TOP ---
   const { isLoaded, isSignedIn, user } = useUser();
   const searchParams = useSearchParams();
@@ -259,27 +273,37 @@ export default function UserDashboardPage() {
                             {ticket.ticketType}
                           </span>
                         </p>
-                        {/* Replace QR code text with a visual placeholder */}
-                        <div className="mt-4 flex flex-col items-center border-t pt-4">
+                        <p className="text-sm">
+                          <span className="font-medium">Purchased:</span>{" "}
+                          {new Date(ticket.purchaseDate).toLocaleDateString()}
+                        </p>
+
+                        <div className="mt-4">
                           {ticket.qrCodeUrl ? (
-                            <>
-                              {/* Simple visual placeholder for QR code */}
-                              <div className="mb-2 h-24 w-24 bg-muted p-1">
-                                <div className="h-full w-full border border-dashed border-muted-foreground"></div>
-                              </div>
-                              <p className="text-center text-xs text-muted-foreground">
-                                Scan QR code at event entry
+                            <div className="flex flex-col items-center">
+                              <img
+                                src={ticket.qrCodeUrl}
+                                alt="Ticket QR Code"
+                                className="h-32 w-32"
+                              />
+                              <p className="mt-2 text-xs text-muted-foreground">
+                                Present this QR code at the event
                               </p>
-                            </>
+                            </div>
                           ) : (
-                            <p className="text-center text-sm text-muted-foreground">
-                              QR Code not yet available.
+                            <p className="text-center text-sm text-amber-600">
+                              QR code will be available soon
                             </p>
                           )}
-                          {/* Link to a future ticket detail page can remain commented out */}
-                          {/* <Link href={`/tickets/${ticket.registrationId}`}>
-                              <Button variant="outline" size="sm">View Full Ticket</Button>
-                          </Link> */}
+                        </div>
+
+                        <div className="mt-4 flex justify-center">
+                          <Link
+                            href={`/events/${ticket.eventId}`}
+                            className="text-sm text-blue-600 hover:underline"
+                          >
+                            View Event Details
+                          </Link>
                         </div>
                       </CardContent>
                     </Card>
@@ -297,12 +321,21 @@ export default function UserDashboardPage() {
             </CardHeader>
             <CardContent>
               <p className="py-8 text-center text-muted-foreground">
-                You don't have any notifications yet.
+                You don't have any notifications right now.
               </p>
             </CardContent>
           </Card>
         </TabsContent>
       </Tabs>
     </div>
+  );
+}
+
+// Export the wrapped component
+export default function UserDashboardPage() {
+  return (
+    <Suspense fallback={<DashboardLoading />}>
+      <DashboardContent />
+    </Suspense>
   );
 }
