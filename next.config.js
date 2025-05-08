@@ -4,9 +4,9 @@
  */
 import "./src/env.js";
 
-/** @type {import("next").NextConfig} */
-const config = {
-  // Disable TypeScript type checking in production build
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  // Disable type checking during build as we'll handle it separately
   typescript: {
     // !! WARN !!
     // Dangerously allow production builds to successfully complete even if
@@ -14,13 +14,10 @@ const config = {
     // !! WARN !!
     ignoreBuildErrors: true,
   },
-  
-  // Also disable ESLint during build for faster builds
   eslint: {
-    // Warning: This allows production builds to successfully complete even if
-    // your project has ESLint errors.
+    // Similarly, ignore eslint errors during build
     ignoreDuringBuilds: true,
   },
 };
 
-export default config;
+export default nextConfig;
