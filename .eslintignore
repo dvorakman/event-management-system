@@ -1,0 +1,42 @@
+# Dependencies
+node_modules
+.pnp
+.pnp.js
+
+# Build outputs
+.next/
+out/
+build/
+dist/
+
+# Environment and cache
+.env
+.env.*
+!.env.example
+.cache
+.vercel
+.output
+
+# Package management
+*.lock
+bun.lock
+yarn.lock
+package-lock.json
+pnpm-lock.yaml
+
+# Generated content
+drizzle/
+public/
+
+# Typescript
+*.tsbuildinfo
+next-env.d.ts
+
+# Testing
+coverage/
+cypress/videos/
+cypress/screenshots/
+
+# Misc
+.DS_Store
+*.pem 
