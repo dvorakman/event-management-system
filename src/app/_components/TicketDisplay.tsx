@@ -132,3 +132,4 @@ export function TicketDisplay({ ticket }: TicketDisplayProps) {
     </div>
   );
 } 
+

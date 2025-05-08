@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, Suspense, useRef } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
@@ -8,18 +9,120 @@ import { Button } from "~/components/ui/button";
 import Link from "next/link";
 import { Loader2 } from "lucide-react";
 import { api } from "~/trpc/react";
-import { redirect } from "next/navigation";
 
-export default function UserDashboardPage() {
+// Define type for ticket data fetched from backend
+interface UserTicket {
+  registrationId: number;
+  eventId: number;
+  eventName: string;
+  eventStartDate: Date;
+  eventLocation: string;
+  ticketType: "general" | "vip";
+  purchaseDate: Date;
+  ticketNumber: string | null; // Ticket might not exist yet
+  qrCodeUrl: string | null; // QR code might not exist yet
+}
+
+// Loading component
+function DashboardLoading() {
+  return (
+    <div className="flex min-h-screen items-center justify-center">
+      {/* Loading spinner */}
+      <div className="text-center">
+        <div className="mb-4 h-12 w-12 animate-spin rounded-full border-4 border-blue-600 border-t-transparent" />
+        <p className="text-lg text-gray-600">Loading dashboard...</p>
+      </div>
+    </div>
+  );
+}
+
+// Main dashboard component that uses hooks
+function DashboardContent() {
+  const router = useRouter();
   const { isLoaded, isSignedIn, user } = useUser();
-  const { data: dbUser, isLoading: isUserLoading } =
-    api.user.getCurrentUser.useQuery();
-  const [activeTab, setActiveTab] = useState("overview");
+  const searchParams = useSearchParams();
+  const initialLoadRef = useRef(true);
 
-  // Handle loading state
-  if (!isLoaded || isUserLoading) {
+  // Get current tab from URL or default to overview
+  const tabParam = searchParams.get("tab");
+  const initialTab =
+    tabParam === "tickets" || tabParam === "notifications"
+      ? tabParam
+      : "overview";
+
+  const [activeTab, setActiveTab] = useState(initialTab);
+
+  const { data: dbUser, isLoading: isUserLoading } =
+    api.user.getCurrentUser.useQuery(undefined, {
+      enabled: isLoaded && isSignedIn, // Fetch only when Clerk is loaded and user signed in
+      refetchOnWindowFocus: true,
+    });
+
+  const {
+    data: ticketsData,
+    isLoading: isLoadingTickets,
+    error: ticketsError,
+  } = api.user.getMyTickets.useQuery(undefined, {
+    enabled: isLoaded && isSignedIn, // Only fetch if logged in
+  });
+
+  // Handle tab changes with URL updates
+  const handleTabChange = (value: string) => {
+    setActiveTab(value);
+
+    // Create a new URLSearchParams object with the current params
+    const params = new URLSearchParams(searchParams.toString());
+
+    // Update or add the tab parameter
+    if (value === "overview") {
+      // If going to default tab, remove the parameter for cleaner URLs
+      params.delete("tab");
+    } else {
+      params.set("tab", value);
+    }
+
+    // Update the URL without full navigation using replace
+    const newUrl = `${window.location.pathname}${params.toString() ? `?${params.toString()}` : ""}`;
+    router.replace(newUrl, { scroll: false });
+  };
+
+  // Handle auth redirects - only runs once on mount and when auth state changes
+  useEffect(() => {
+    // Early return if auth isn't loaded yet
+    if (!isLoaded) return;
+
+    // Handle not signed in case
+    if (!isSignedIn) {
+      router.push("/sign-in?redirect_url=/dashboard");
+      return;
+    }
+
+    // Only perform role-based redirect on initial load or when role changes
+    // and only when on the main dashboard (no tab selected)
+    if (initialLoadRef.current && dbUser && !tabParam) {
+      if (dbUser.role === "organizer" || dbUser.role === "admin") {
+        router.push("/organizer/dashboard");
+      }
+      // Mark that initial load is complete
+      initialLoadRef.current = false;
+    }
+  }, [isLoaded, isSignedIn, dbUser, router, tabParam]);
+
+  // Keep tab state synced with URL
+  useEffect(() => {
+    const tabFromUrl = searchParams.get("tab");
+    if (tabFromUrl === "tickets" || tabFromUrl === "notifications") {
+      setActiveTab(tabFromUrl);
+    } else if (tabFromUrl === null && activeTab !== "overview") {
+      setActiveTab("overview");
+    }
+  }, [searchParams, activeTab]);
+
+  // Show loading state during auth check and initial data fetch
+  if (!isLoaded || (isSignedIn && isUserLoading && !dbUser)) {
     return (
       <div className="flex min-h-screen items-center justify-center">
+        {/* Loading spinner */}
         <div className="text-center">
           <div className="mb-4 h-12 w-12 animate-spin rounded-full border-4 border-blue-600 border-t-transparent" />
           <p className="text-lg text-gray-600">Loading dashboard...</p>
@@ -28,14 +131,15 @@ export default function UserDashboardPage() {
     );
   }
 
-  // Handle not signed in state
-  if (!isSignedIn) {
-    return redirect("/sign-in");
-  }
-
-  // Redirect organizers/admins to their dashboard
-  if (dbUser?.role === "organizer" || dbUser?.role === "admin") {
-    return redirect("/organizer/dashboard");
+  // Ensure user object exists before accessing properties
+  if (!user) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <p className="text-lg text-red-600">
+          User data not available. Please try signing in again.
+        </p>
+      </div>
+    );
   }
 
   return (
@@ -48,9 +152,9 @@ export default function UserDashboardPage() {
       </div>
 
       <Tabs
-        defaultValue="overview"
+        defaultValue={initialTab}
         value={activeTab}
-        onValueChange={setActiveTab}
+        onValueChange={handleTabChange}
         className="w-full"
       >
         <TabsList className="mb-4">
@@ -93,11 +197,13 @@ export default function UserDashboardPage() {
                     Browse All Events
                   </Button>
                 </Link>
-                <Link href="/tickets">
-                  <Button variant="outline" className="w-full">
-                    View My Tickets
-                  </Button>
-                </Link>
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => handleTabChange("tickets")}
+                >
+                  View My Tickets
+                </Button>
                 <Link href="/become-organizer">
                   <Button variant="outline" className="w-full">
                     Become an Organizer
@@ -130,15 +236,97 @@ export default function UserDashboardPage() {
               <CardTitle>Your Tickets</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="py-8 text-center text-muted-foreground">
-                You don't have any tickets yet. Browse events and register to
-                see your tickets here.
-              </p>
-              <div className="flex justify-center">
-                <Link href="/events">
-                  <Button>Find Events</Button>
-                </Link>
-              </div>
+              {isLoadingTickets ? (
+                <div className="flex justify-center py-12">
+                  <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                </div>
+              ) : ticketsError ? (
+                <p className="text-center text-red-600">
+                  Error loading tickets: {ticketsError.message}
+                </p>
+              ) : !ticketsData || ticketsData.length === 0 ? (
+                <>
+                  <p className="py-8 text-center text-muted-foreground">
+                    You don't have any tickets yet. Browse events and register
+                    to see your tickets here.
+                  </p>
+                  <div className="flex justify-center">
+                    <Link href="/events">
+                      <Button>Find Events</Button>
+                    </Link>
+                  </div>
+                </>
+              ) : (
+                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                  {ticketsData.map((ticket) => (
+                    <Card
+                      key={ticket.registrationId}
+                      className="overflow-hidden"
+                    >
+                      <CardHeader>
+                        <CardTitle className="line-clamp-1 text-lg">
+                          {ticket.eventName}
+                        </CardTitle>
+                        <p className="text-sm text-muted-foreground">
+                          Ticket #{ticket.ticketNumber || "N/A"}
+                        </p>
+                      </CardHeader>
+                      <CardContent className="space-y-2">
+                        <p className="text-sm">
+                          <span className="font-medium">Date:</span>{" "}
+                          {ticket.eventStartDate
+                            ? new Date(
+                                ticket.eventStartDate,
+                              ).toLocaleDateString()
+                            : "N/A"}
+                        </p>
+                        <p className="text-sm">
+                          <span className="font-medium">Location:</span>{" "}
+                          {ticket.eventLocation}
+                        </p>
+                        <p className="text-sm">
+                          <span className="font-medium">Type:</span>{" "}
+                          <span className="capitalize">
+                            {ticket.ticketType}
+                          </span>
+                        </p>
+                        <p className="text-sm">
+                          <span className="font-medium">Purchased:</span>{" "}
+                          {new Date(ticket.purchaseDate).toLocaleDateString()}
+                        </p>
+
+                        <div className="mt-4">
+                          {ticket.qrCodeUrl ? (
+                            <div className="flex flex-col items-center">
+                              <img
+                                src={ticket.qrCodeUrl}
+                                alt="Ticket QR Code"
+                                className="h-32 w-32"
+                              />
+                              <p className="mt-2 text-xs text-muted-foreground">
+                                Present this QR code at the event
+                              </p>
+                            </div>
+                          ) : (
+                            <p className="text-center text-sm text-amber-600">
+                              QR code will be available soon
+                            </p>
+                          )}
+                        </div>
+
+                        <div className="mt-4 flex justify-center">
+                          <Link
+                            href={`/events/${ticket.eventId}`}
+                            className="text-sm text-blue-600 hover:underline"
+                          >
+                            View Event Details
+                          </Link>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -150,12 +338,21 @@ export default function UserDashboardPage() {
             </CardHeader>
             <CardContent>
               <p className="py-8 text-center text-muted-foreground">
-                You don't have any notifications yet.
+                You don't have any notifications right now.
               </p>
             </CardContent>
           </Card>
         </TabsContent>
       </Tabs>
     </div>
+  );
+}
+
+// Export the wrapped component
+export default function UserDashboardPage() {
+  return (
+    <Suspense fallback={<DashboardLoading />}>
+      <DashboardContent />
+    </Suspense>
   );
 }
