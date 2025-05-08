@@ -16,7 +16,7 @@
     "dev:webpack": "next dev",
     "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,mdx}\" --cache",
     "format:write": "prettier --write \"**/*.{ts,tsx,js,jsx,mdx}\" --cache",
-    "lint": "next lint",
+    "lint": "next lint --max-warnings=1000",
     "lint:fix": "next lint --fix",
     "preview": "next build && next start",
     "start": "next start",
