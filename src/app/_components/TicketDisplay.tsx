@@ -1,134 +1,87 @@
 "use client";
 
-import React from "react";
-import Image from "next/image";
-import Link from "next/link";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "~/components/ui/card";
 import { Button } from "~/components/ui/button";
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "~/components/ui/card";
-import { formatDate } from "~/lib/utils";
+import Link from "next/link";
 
 interface TicketData {
-  id: string;
-  name: string;
-  email: string;
-  ticketType: string;
-  ticketPrice: number;
-  eventId: string;
+  ticketId: string; // Assuming this is the ticket number
   eventName: string;
-  eventDate: string;
-  eventLocation: string;
-  qrCode: string;
+  ticketType: string;
+  purchaseDate: Date;
+  qrCodeUrl?: string; // Add QR code URL field here too
 }
 
 interface TicketDisplayProps {
-  ticket: TicketData;
+  ticket: TicketData | null;
 }
 
 export function TicketDisplay({ ticket }: TicketDisplayProps) {
-  const handleDownload = () => {
-    // Create a temporary link to download the QR code
-    const link = document.createElement("a");
-    link.href = ticket.qrCode;
-    link.download = `ticket-qr-${ticket.id}.png`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
-
-  const handlePrint = () => {
-    window.print();
-  };
+  if (!ticket) {
+    return <p>Error displaying ticket details.</p>;
+  }
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center p-4">
-      <div className="max-w-2xl w-full print:max-w-full">
-        <h1 className="text-3xl font-bold text-center mb-8 print:text-2xl">
-          Your Ticket is Ready!
-        </h1>
-        
-        <Card className="w-full shadow-lg print:shadow-none">
-          <CardHeader className="bg-gradient-to-r from-blue-600 to-purple-600 text-white print:bg-gray-200 print:text-black">
-            <CardTitle className="text-xl font-bold text-center">{ticket.eventName}</CardTitle>
-          </CardHeader>
-          
-          <CardContent className="p-6 grid gap-6 md:grid-cols-2">
-            <div className="space-y-4">
-              <div>
-                <h3 className="font-semibold text-gray-500">Attendee</h3>
-                <p className="text-lg">{ticket.name}</p>
-              </div>
-              
-              <div>
-                <h3 className="font-semibold text-gray-500">Email</h3>
-                <p>{ticket.email}</p>
-              </div>
-              
-              <div>
-                <h3 className="font-semibold text-gray-500">Date</h3>
-                <p>{formatDate(new Date(ticket.eventDate))}</p>
-              </div>
-              
-              <div>
-                <h3 className="font-semibold text-gray-500">Location</h3>
-                <p>{ticket.eventLocation}</p>
-              </div>
-              
-              <div>
-                <h3 className="font-semibold text-gray-500">Ticket Type</h3>
-                <p>{ticket.ticketType}</p>
-              </div>
-              
-              <div>
-                <h3 className="font-semibold text-gray-500">Ticket ID</h3>
-                <p className="font-mono text-sm">{ticket.id}</p>
-              </div>
-            </div>
-            
-            <div className="flex flex-col items-center justify-center">
-              <div className="bg-white p-2 rounded-lg shadow-md mb-4">
-                {ticket.qrCode ? (
-                  <Image 
-                    src={ticket.qrCode} 
-                    alt="Ticket QR Code" 
-                    width={200} 
-                    height={200}
-                    className="mx-auto"
-                  />
-                ) : (
-                  <div className="w-[200px] h-[200px] bg-gray-200 flex items-center justify-center">
-                    <p className="text-gray-500">QR Code Unavailable</p>
-                  </div>
-                )}
-              </div>
-              <p className="text-center text-sm text-gray-500">
-                Scan this QR code at the event entrance
-              </p>
-            </div>
-          </CardContent>
-          
-          <CardFooter className="flex flex-col sm:flex-row gap-4 justify-between items-center bg-gray-50 p-6 print:hidden">
-            <div className="flex gap-2">
-              <Button onClick={handleDownload} variant="outline">
-                Download QR
-              </Button>
-              <Button onClick={handlePrint} variant="outline">
-                Print Ticket
-              </Button>
-            </div>
-            <Link href={`/events/${ticket.eventId}`}>
-              <Button variant="default">
-                Return to Event
-              </Button>
-            </Link>
-          </CardFooter>
-        </Card>
-        
-        <div className="mt-8 text-center print:hidden">
-          <p className="text-gray-600">
-            You'll also receive a confirmation email with your ticket details.
+    <Card className="mx-auto w-full max-w-md">
+      <CardHeader className="text-center">
+        <CardTitle className="text-2xl">Registration Confirmed!</CardTitle>
+        <CardDescription>
+          Here is your ticket for {ticket.eventName}
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="rounded-lg border bg-muted/50 p-4">
+          <p className="text-sm text-muted-foreground">Ticket Number</p>
+          <p className="font-mono text-lg font-semibold tracking-wider">
+            {ticket.ticketId}
           </p>
         </div>
-      </div>
-    </div>
+
+        {/* Display QR Code if available */}
+        {ticket.qrCodeUrl ? (
+          <div className="flex justify-center rounded-lg border bg-white p-4">
+            <img
+              src={ticket.qrCodeUrl}
+              alt={`QR Code for ticket ${ticket.ticketId}`}
+              className="h-40 w-40"
+            />
+          </div>
+        ) : (
+          // Fallback if QR code is missing for some reason
+          <div className="rounded-lg border bg-muted/50 p-4 text-center">
+            <p className="font-semibold">QR Code Unavailable</p>
+            <p className="text-sm text-muted-foreground">
+              Could not load QR code.
+            </p>
+          </div>
+        )}
+
+        <div className="space-y-1">
+          <p>
+            <span className="font-medium">Event:</span> {ticket.eventName}
+          </p>
+          <p>
+            <span className="font-medium">Ticket Type:</span>{" "}
+            <span className="capitalize">{ticket.ticketType}</span>
+          </p>
+          <p>
+            <span className="font-medium">Purchase Date:</span>{" "}
+            {new Date(ticket.purchaseDate).toLocaleString()}
+          </p>
+        </div>
+
+        <div className="flex justify-center pt-4">
+          <Button asChild>
+            <Link href="/dashboard?tab=tickets">View All My Tickets</Link>
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
   );
-} 
+}

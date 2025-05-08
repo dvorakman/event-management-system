@@ -24,7 +24,7 @@ export function Header() {
               <SignedIn>
                 <li>
                   <Link
-                    href="/tickets"
+                    href="/dashboard?tab=tickets"
                     className="text-sm font-medium text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-50"
                   >
                     My Tickets
@@ -32,7 +32,7 @@ export function Header() {
                 </li>
                 <li>
                   <Link
-                    href="/notifications"
+                    href="/dashboard?tab=notifications"
                     className="text-sm font-medium text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-50"
                   >
                     Notifications

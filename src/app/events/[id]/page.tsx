@@ -132,7 +132,7 @@ async function EventDetails({ id }: { id: number }) {
         </div>
 
         {/* Action Buttons */}
-        <EventActionButtons 
+        <EventActionButtons
           status={event.status}
           eventId={event.id}
           eventName={event.name}
@@ -147,15 +147,12 @@ async function EventDetails({ id }: { id: number }) {
 
 type Props = {
   params: { id: string };
-  searchParams: { [key: string]: string | string[] | undefined };
-};
-
-export default async function EventPage({ params }: Props) {
-  const id = parseInt(params.id, 10);
+}) {
+  const id = Number.parseInt(params.id, 10);
 
   return (
     <Suspense fallback={<EventDetailsLoading />}>
       <EventDetails id={id} />
     </Suspense>
   );
-} 
+}
