@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
-import { useSearchParams } from "next/navigation";
+import { useState, useEffect, Suspense, useRef } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
@@ -9,7 +9,6 @@ import { Button } from "~/components/ui/button";
 import Link from "next/link";
 import { Loader2 } from "lucide-react";
 import { api } from "~/trpc/react";
-import { redirect } from "next/navigation";
 
 // Define type for ticket data fetched from backend
 interface UserTicket {
@@ -39,11 +38,19 @@ function DashboardLoading() {
 
 // Main dashboard component that uses hooks
 function DashboardContent() {
-  // --- HOOKS MOVED TO TOP ---
+  const router = useRouter();
   const { isLoaded, isSignedIn, user } = useUser();
   const searchParams = useSearchParams();
+  const initialLoadRef = useRef(true);
+
+  // Get current tab from URL or default to overview
+  const tabParam = searchParams.get("tab");
   const initialTab =
-    searchParams.get("tab") === "tickets" ? "tickets" : "overview"; // Check for ?tab=tickets
+    tabParam === "tickets" || tabParam === "notifications"
+      ? tabParam
+      : "overview";
+
+  const [activeTab, setActiveTab] = useState(initialTab);
 
   const { data: dbUser, isLoading: isUserLoading } =
     api.user.getCurrentUser.useQuery(undefined, {
@@ -59,30 +66,60 @@ function DashboardContent() {
     enabled: isLoaded && isSignedIn, // Only fetch if logged in
   });
 
-  const [activeTab, setActiveTab] = useState(initialTab);
+  // Handle tab changes with URL updates
+  const handleTabChange = (value: string) => {
+    setActiveTab(value);
 
-  // Update active tab if URL changes
+    // Create a new URLSearchParams object with the current params
+    const params = new URLSearchParams(searchParams.toString());
+
+    // Update or add the tab parameter
+    if (value === "overview") {
+      // If going to default tab, remove the parameter for cleaner URLs
+      params.delete("tab");
+    } else {
+      params.set("tab", value);
+    }
+
+    // Update the URL without full navigation using replace
+    const newUrl = `${window.location.pathname}${params.toString() ? `?${params.toString()}` : ""}`;
+    router.replace(newUrl, { scroll: false });
+  };
+
+  // Handle auth redirects - only runs once on mount and when auth state changes
   useEffect(() => {
-    const currentTab = searchParams.get("tab");
-    if (
-      currentTab === "tickets" ||
-      currentTab === "notifications" ||
-      currentTab === "overview"
-    ) {
-      setActiveTab(currentTab);
-    } else if (currentTab && activeTab !== "overview") {
-      // Prevent infinite loop if invalid tab
-      // Optional: handle invalid tab param, maybe default to overview
+    // Early return if auth isn't loaded yet
+    if (!isLoaded) return;
+
+    // Handle not signed in case
+    if (!isSignedIn) {
+      router.push("/sign-in?redirect_url=/dashboard");
+      return;
+    }
+
+    // Only perform role-based redirect on initial load or when role changes
+    // and only when on the main dashboard (no tab selected)
+    if (initialLoadRef.current && dbUser && !tabParam) {
+      if (dbUser.role === "organizer" || dbUser.role === "admin") {
+        router.push("/organizer/dashboard");
+      }
+      // Mark that initial load is complete
+      initialLoadRef.current = false;
+    }
+  }, [isLoaded, isSignedIn, dbUser, router, tabParam]);
+
+  // Keep tab state synced with URL
+  useEffect(() => {
+    const tabFromUrl = searchParams.get("tab");
+    if (tabFromUrl === "tickets" || tabFromUrl === "notifications") {
+      setActiveTab(tabFromUrl);
+    } else if (tabFromUrl === null && activeTab !== "overview") {
       setActiveTab("overview");
     }
-    // Only re-run if searchParams or initial activeTab changes
   }, [searchParams, activeTab]);
-  // --- END OF HOOKS ---
 
-  // --- CONDITIONAL RETURNS MOVED AFTER HOOKS ---
-  // Handle loading state for auth and initial user data fetch
+  // Show loading state during auth check and initial data fetch
   if (!isLoaded || (isSignedIn && isUserLoading && !dbUser)) {
-    // Adjust loading condition slightly
     return (
       <div className="flex min-h-screen items-center justify-center">
         {/* Loading spinner */}
@@ -94,28 +131,8 @@ function DashboardContent() {
     );
   }
 
-  // Handle not signed in state AFTER hooks
-  if (!isSignedIn) {
-    // Use effect for client-side redirect to avoid issues during render
-    useEffect(() => {
-      redirect("/sign-in?redirect_url=/dashboard");
-    }, []);
-    return null; // Render nothing while redirecting
-  }
-
-  // Redirect organizers/admins AFTER hooks and ensuring dbUser is loaded
-  if (dbUser?.role === "organizer" || dbUser?.role === "admin") {
-    // Use effect for client-side redirect
-    useEffect(() => {
-      redirect("/organizer/dashboard");
-    }, []);
-    return null; // Render nothing while redirecting
-  }
-  // --- END OF CONDITIONAL RETURNS ---
-
   // Ensure user object exists before accessing properties
   if (!user) {
-    // This case should ideally be covered by !isSignedIn, but adding for safety
     return (
       <div className="flex min-h-screen items-center justify-center">
         <p className="text-lg text-red-600">
@@ -135,9 +152,9 @@ function DashboardContent() {
       </div>
 
       <Tabs
-        defaultValue={initialTab} // Use initialTab here
+        defaultValue={initialTab}
         value={activeTab}
-        onValueChange={setActiveTab}
+        onValueChange={handleTabChange}
         className="w-full"
       >
         <TabsList className="mb-4">
@@ -183,7 +200,7 @@ function DashboardContent() {
                 <Button
                   variant="outline"
                   className="w-full"
-                  onClick={() => setActiveTab("tickets")}
+                  onClick={() => handleTabChange("tickets")}
                 >
                   View My Tickets
                 </Button>
