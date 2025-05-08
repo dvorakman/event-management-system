@@ -12,9 +12,6 @@
     "db:reset:preview": "bun run scripts/reset-preview-db.ts",
     "db:push": "drizzle-kit push --config=drizzle.config.mjs",
     "db:studio": "drizzle-kit studio --config=drizzle.config.mjs",
-    "db:start": "node scripts/start-db.mjs",
-    "db:seed": "bun run scripts/seed-db.ts",
-    "db:generate-test-data": "bun run scripts/generate-test-data.ts",
     "dev": "next dev --turbo",
     "dev:webpack": "next dev",
     "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,mdx}\" --cache",
@@ -24,6 +21,7 @@
     "preview": "next build && next start",
     "start": "next start",
     "typecheck": "tsc --noEmit",
+    "generate-test-data": "bun scripts/generate-test-data.ts",
     "sync-users": "bun src/server/db/sync-users.ts",
     "test:org-membership": "bun src/server/db/test-org-membership.ts",
     "cy:open": "cypress open",
@@ -32,7 +30,8 @@
     "test:e2e:open": "start-server-and-test dev http://localhost:3000 cy:open"
   },
   "dependencies": {
-    "@clerk/clerk-sdk-node": "^5.1.6",
+    "@clerk/backend": "^1.31.2",
+    "@clerk/express": "^1.4.14",
     "@clerk/nextjs": "^6.12.12",
     "@neondatabase/serverless": "^0.10.4",
     "@radix-ui/react-dialog": "^1.1.6",
@@ -90,7 +89,7 @@
     "@types/eslint": "^8.56.10",
     "@types/node": "^20.14.10",
     "@types/react": "^18.3.3",
-    "@types/react-dom": "^18.3.0",
+    "@types/react-dom": "18.3.0",
     "@typescript-eslint/eslint-plugin": "^8.1.0",
     "@typescript-eslint/parser": "^8.1.0",
     "drizzle-kit": "^0.30.5",
@@ -101,7 +100,8 @@
     "prettier": "^3.3.2",
     "prettier-plugin-tailwindcss": "^0.6.5",
     "tailwindcss": "^3.4.3",
-    "typescript": "^5.5.3"
+    "typescript": "^5.5.3",
+    "vercel": "^41.7.0"
   },
   "ct3aMetadata": {
     "initVersion": "7.38.1"

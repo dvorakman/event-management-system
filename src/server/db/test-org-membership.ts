@@ -1,10 +1,10 @@
-import { createClerkClient } from '@clerk/clerk-sdk-node';
-import type { OrganizationMembership, User } from '@clerk/clerk-sdk-node';
+import { clerkClient } from '@clerk/nextjs/server';
+import type { OrganizationMembershipResource, UserResource } from '@clerk/types';
 
 const DEV_ORG_ID = "org_2uhiVWqO42Gg9QpwFMtarlywYwA";
 
 // Initialize the Clerk client
-const clerk = createClerkClient({ secretKey: process.env.CLERK_SECRET_KEY });
+const clerk = clerkClient;
 
 async function testOrgMembership() {
   console.log("Testing organization membership...");
@@ -12,7 +12,7 @@ async function testOrgMembership() {
   
   try {
     // Get all users
-    const { data: users } = await clerk.users.getUserList();
+    const users = await clerk.users.getUserList();
     console.log(`Found ${users.length} users in Clerk`);
 
     for (const user of users) {
@@ -20,14 +20,14 @@ async function testOrgMembership() {
       console.log(`Testing user: ${user.username} (${user.emailAddresses[0]?.emailAddress})`);
       
       // Get org memberships for this user
-      const { data: memberships } = await clerk.users.getOrganizationMembershipList({
+      const memberships = await clerk.users.getOrganizationMembershipList({
         userId: user.id
       });
 
       console.log(`Found ${memberships.length} organization memberships`);
       
       // Check if user is in dev org
-      const devOrgMembership = memberships.find((m: OrganizationMembership) => 
+      const devOrgMembership = memberships.find((m: OrganizationMembershipResource) => 
         m.organization.id === DEV_ORG_ID
       );
       
@@ -40,7 +40,7 @@ async function testOrgMembership() {
 
       // List all organizations this user belongs to
       console.log("\nAll organization memberships:");
-      memberships.forEach((m: OrganizationMembership) => {
+      memberships.forEach((m: OrganizationMembershipResource) => {
         console.log(`- ${m.organization.name} (${m.organization.id})`);
         console.log(`  Role: ${m.role}`);
       });

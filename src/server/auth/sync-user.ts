@@ -1,12 +1,12 @@
 import { type User } from "@clerk/nextjs/server";
-import { createClerkClient } from "@clerk/clerk-sdk-node";
+import { clerkClient } from "@clerk/nextjs/server";
 import { db } from "~/server/db";
 import { users } from "~/server/db/schema";
 import { eq } from "drizzle-orm";
 import type { UserRole } from "~/server/db/schema";
 
-// Create a Clerk client instance
-const clerk = createClerkClient({ secretKey: process.env.CLERK_SECRET_KEY });
+// We'll use the clerkClient from @clerk/nextjs instead of creating a new client
+const clerk = clerkClient;
 
 export async function syncUser(clerkUser: User) {
   const email = clerkUser.emailAddresses[0]?.emailAddress ?? "";

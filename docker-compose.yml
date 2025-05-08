@@ -1,0 +1,51 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: development # Use the new 'development' stage
+    container_name: event-management-app
+    ports:
+      - "3000:3000"
+    depends_on:
+      - db
+    environment:
+      # Use the service name 'db' to connect from the app container to the db container
+      # on the Docker network.
+      # Ensure DATABASE_URL uses this hostname if NEON_DATABASE_URL is not set
+      # NOTE: You still need your .env file for Clerk, Stripe etc. keys
+      # These are NOT automatically passed from docker-compose to the container build
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/postgres
+      NODE_ENV: development # Override NODE_ENV for development
+      # Pass other necessary public env vars if needed, e.g.
+      # NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}
+    volumes:
+      # Mount the source code for hot-reloading during development
+      - .:/app
+      # Prevent node_modules from being overwritten by the host mount
+      - /app/node_modules
+      # Mount .env file (read-only) for secrets
+      - ./.env:/app/.env:ro
+    # Command to run in development (using hot-reload)
+    command: bun run dev
+    # Ensure the container stays running
+    stdin_open: true
+    tty: true
+
+  db:
+    image: postgres:latest
+    container_name: event-management-postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: postgres
+    ports:
+      # Expose port 5432 locally if you need to connect directly with a DB client
+      - "5432:5432"
+    volumes:
+      # Persist database data across container restarts
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:
+    driver: local 

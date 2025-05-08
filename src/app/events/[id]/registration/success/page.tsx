@@ -21,14 +21,14 @@ function LoadingState() {
   );
 }
 
+type Props = {
+  params: { id: string };
+  searchParams: { [key: string]: string | string[] | undefined };
+};
+
 export default function RegistrationSuccessPage({
   params,
-}: {
-  params: Promise<{ id: string }>; // params is a Promise
-}) {
-  // Unwrap the params promise
-  const resolvedParams = use(params);
-
+}: Props) {
   const searchParams = useSearchParams();
   const sessionId = searchParams.get("session_id");
 
