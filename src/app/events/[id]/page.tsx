@@ -132,7 +132,7 @@ async function EventDetails({ id }: { id: number }) {
         </div>
 
         {/* Action Buttons */}
-        <EventActionButtons 
+        <EventActionButtons
           status={event.status}
           eventId={event.id}
           eventName={event.name}
@@ -158,4 +158,4 @@ export default async function EventPage({ params }: Props) {
       <EventDetails id={id} />
     </Suspense>
   );
-} 
+}

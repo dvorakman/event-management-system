@@ -25,7 +25,7 @@ export const createTable = pgTableCreator(
   (name) => `event-management-system_${name}`,
 );
 
-export const userRole = pgEnum('user_role', ['user', 'organizer', 'admin']);
+export const userRole = pgEnum("user_role", ["user", "organizer", "admin"]);
 
 // Users table (although we're using Clerk for auth, we still need to store some user data)
 export const users = createTable(
@@ -37,14 +37,16 @@ export const users = createTable(
     lastName: text("last_name"),
     username: text("username"),
     profileImage: text("profile_image"),
-    role: userRole('role').default('user').notNull(),
+    role: userRole("role").default("user").notNull(),
     externalId: text("external_id"),
     metadata: text("metadata"), // JSON string for additional Clerk metadata
     lastSignInAt: timestamp("last_sign_in_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true })
       .default(sql`CURRENT_TIMESTAMP`)
       .notNull(),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).$onUpdate(() => new Date()),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).$onUpdate(
+      () => new Date(),
+    ),
     becameOrganizerAt: timestamp("became_organizer_at"),
   },
   (table) => ({
@@ -66,8 +68,14 @@ export const events = createTable(
     type: text("type", {
       enum: ["conference", "concert", "workshop", "networking", "other"],
     }).notNull(),
-    generalTicketPrice: decimal("general_ticket_price", { precision: 10, scale: 2 }).notNull(),
-    vipTicketPrice: decimal("vip_ticket_price", { precision: 10, scale: 2 }).notNull(),
+    generalTicketPrice: decimal("general_ticket_price", {
+      precision: 10,
+      scale: 2,
+    }).notNull(),
+    vipTicketPrice: decimal("vip_ticket_price", {
+      precision: 10,
+      scale: 2,
+    }).notNull(),
     vipPerks: text("vip_perks").notNull(),
     maxAttendees: integer("max_attendees").notNull(),
     organizerId: text("organizer_id")
@@ -81,7 +89,9 @@ export const events = createTable(
     createdAt: timestamp("created_at", { withTimezone: true })
       .default(sql`CURRENT_TIMESTAMP`)
       .notNull(),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).$onUpdate(() => new Date()),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).$onUpdate(
+      () => new Date(),
+    ),
   },
   (table) => ({
     organizerIdx: index("organizer_idx").on(table.organizerId),
@@ -117,7 +127,9 @@ export const registrations = createTable(
     createdAt: timestamp("created_at", { withTimezone: true })
       .default(sql`CURRENT_TIMESTAMP`)
       .notNull(),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).$onUpdate(() => new Date()),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).$onUpdate(
+      () => new Date(),
+    ),
   },
   (table) => ({
     userEventIdx: index("user_event_idx").on(table.userId, table.eventId),
@@ -181,7 +193,9 @@ export const posts = createTable(
     createdAt: timestamp("createdAt", { withTimezone: true })
       .default(sql`CURRENT_TIMESTAMP`)
       .notNull(),
-    updatedAt: timestamp("updatedAt", { withTimezone: true }).$onUpdate(() => new Date()),
+    updatedAt: timestamp("updatedAt", { withTimezone: true }).$onUpdate(
+      () => new Date(),
+    ),
   },
   (example) => ({
     nameIndex: index("name_idx").on(example.name),
