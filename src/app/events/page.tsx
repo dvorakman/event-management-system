@@ -19,6 +19,10 @@ import { Skeleton } from "~/components/ui/skeleton";
 
 // Loading component shown during event data fetch
 function EventsLoading() {
+  // Generate items with unique IDs for keys
+  const skeletonItems = Array.from({ length: 6 }, (_, i) => ({
+    id: `loading-event-skeleton-${i}`,
+  }));
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="mb-8 flex flex-col space-y-6">
@@ -31,9 +35,9 @@ function EventsLoading() {
         </div>
       </div>
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {Array.from({ length: 6 }).map((_, index) => (
+        {skeletonItems.map((item) => (
           <div
-            key={`loading-card-${index}`}
+            key={item.id}
             className="flex flex-col rounded-lg bg-white p-6 shadow-md dark:bg-gray-800"
           >
             <Skeleton className="mb-4 h-6 w-3/4" />
@@ -69,12 +73,19 @@ function EventsList() {
   const { data: eventsData, isLoading } = api.event.list.useQuery(
     {
       limit: 10,
-      cursor: cursor ? parseInt(cursor) : undefined,
+      cursor: cursor ? Number.parseInt(cursor) : undefined,
       type:
-        typeFilter && typeFilter !== "all" ? (typeFilter as any) : undefined,
+        typeFilter && typeFilter !== "all"
+          ? (typeFilter as
+              | "conference"
+              | "concert"
+              | "workshop"
+              | "networking"
+              | "other")
+          : undefined,
       search: searchQuery ?? undefined,
-      minPrice: minPrice ? parseFloat(minPrice) : undefined,
-      maxPrice: maxPrice ? parseFloat(maxPrice) : undefined,
+      minPrice: priceMin ? Number.parseFloat(priceMin) : undefined,
+      maxPrice: priceMax ? Number.parseFloat(priceMax) : undefined,
     },
     {
       enabled: true,
@@ -251,9 +262,12 @@ function EventsList() {
       {/* Events Grid */}
       {isLoading ? (
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {Array.from({ length: 6 }).map((_, index) => (
+          {/* Generate items with unique IDs for keys directly in the map chain */}
+          {Array.from({ length: 6 }, (_, i) => ({
+            id: `loading-data-skeleton-${i}`,
+          })).map((item) => (
             <div
-              key={`loading-card-${index}`}
+              key={item.id}
               className="flex flex-col rounded-lg bg-white p-6 shadow-md dark:bg-gray-800"
             >
               <Skeleton className="mb-4 h-6 w-3/4" />
@@ -268,34 +282,37 @@ function EventsList() {
           {eventsData?.items.map((event) => (
             <div
               key={event.id}
-              className="flex flex-col rounded-lg bg-white p-6 shadow-md transition-transform hover:-translate-y-1 dark:bg-gray-800"
+              className="flex h-full flex-col rounded-3xl border-2 border-primary bg-card p-6"
             >
-              <div className="mb-2 text-sm font-medium uppercase text-blue-600 dark:text-blue-400">
-                {event.type}
+              <div className="mb-4">
+                <p className="font-medium text-primary">{event.type}</p>
               </div>
-              <h2 className="mb-2 text-xl font-bold text-gray-900 dark:text-white">
-                {event.name}
-              </h2>
-              <p className="mb-4 line-clamp-3 flex-grow text-gray-600 dark:text-gray-400">
+
+              <h3 className="mb-3 text-2xl font-bold">{event.name}</h3>
+
+              <p className="mb-6 line-clamp-3 flex-grow text-foreground">
                 {event.description}
               </p>
-              <div className="mb-4">
-                <div className="flex items-center text-sm text-gray-600 dark:text-gray-400">
-                  <span className="mr-1 font-medium">When:</span>
+
+              <div className="mb-8 space-y-2">
+                <p className="text-foreground">
+                  <span className="font-medium">When:</span>{" "}
                   {formatDate(event.startDate)}
-                </div>
-                <div className="flex items-center text-sm text-gray-600 dark:text-gray-400">
-                  <span className="mr-1 font-medium">Where:</span>
-                  {event.location}
-                </div>
-                <div className="flex items-center text-sm text-gray-600 dark:text-gray-400">
-                  <span className="mr-1 font-medium">Price:</span>$
+                </p>
+                <p className="text-foreground">
+                  <span className="font-medium">Where:</span> {event.location}
+                </p>
+                <p className="text-foreground">
+                  <span className="font-medium">Price:</span> $
                   {Number(event.generalTicketPrice).toFixed(2)}
-                </div>
+                </p>
               </div>
+
               <div className="mt-auto">
                 <Link href={`/events/${event.id}`}>
-                  <Button>View Details</Button>
+                  <Button className="bg-primary font-medium text-primary-foreground hover:bg-[#e68a00]">
+                    View Details
+                  </Button>
                 </Link>
               </div>
             </div>
