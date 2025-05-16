@@ -15,9 +15,10 @@ export async function POST(req: Request) {
 
   // If there are no headers, error out
   if (!svix_id || !svix_timestamp || !svix_signature) {
-    return new Response('Error occured -- no svix headers', {
-      status: 400,
-    });
+    return Response.json(
+      { success: false, error: 'Missing svix headers' },
+      { status: 400 }
+    );
   }
 
   // Get the body
@@ -25,8 +26,15 @@ export async function POST(req: Request) {
   const body = JSON.stringify(payload);
 
   // Create a new Svix instance with your webhook secret
-  const wh = new Webhook(process.env.CLERK_WEBHOOK_SECRET || '');
-
+  const webhookSecret = process.env.CLERK_WEBHOOK_SECRET;
+  if (!webhookSecret) {
+    return Response.json(
+      { success: false, error: 'Webhook secret not configured' },
+      { status: 500 }
+    );
+  }
+  
+  const wh = new Webhook(webhookSecret);
   let evt: WebhookEvent;
 
   // Verify the webhook
@@ -38,9 +46,10 @@ export async function POST(req: Request) {
     }) as WebhookEvent;
   } catch (err) {
     console.error('Error verifying webhook:', err);
-    return new Response('Error occured', {
-      status: 400,
-    });
+    return Response.json(
+      { success: false, error: 'Invalid webhook signature' },
+      { status: 400 }
+    );
   }
 
   const eventType = evt.type;
@@ -53,7 +62,10 @@ export async function POST(req: Request) {
       console.log(`User ${evt.data.id} synced successfully`);
     } catch (error) {
       console.error('Error syncing user:', error);
-      return new Response('Error syncing user', { status: 500 });
+      return Response.json(
+        { success: false, error: 'Error syncing user', details: String(error) },
+        { status: 500 }
+      );
     }
   }
 
@@ -68,9 +80,15 @@ export async function POST(req: Request) {
       console.log(`User deleted from database: ${id}`);
     } catch (error) {
       console.error('Error deleting user from database:', error);
-      return new Response('Error deleting user', { status: 500 });
+      return Response.json(
+        { success: false, error: 'Error deleting user', details: String(error) },
+        { status: 500 }
+      );
     }
   }
 
-  return new Response('', { status: 200 });
+  return Response.json(
+    { success: true, event: eventType },
+    { status: 200 }
+  );
 } 

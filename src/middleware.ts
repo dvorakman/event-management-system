@@ -1,5 +1,11 @@
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
+import { createClerkClient } from "@clerk/backend";
+
+// Create Clerk client for direct API access
+const clerkClient = createClerkClient({
+  secretKey: process.env.CLERK_SECRET_KEY
+});
 
 // Define public routes that don't require authentication
 const publicRoutes = [
@@ -9,8 +15,10 @@ const publicRoutes = [
   "/events/:id/register",
   "/sign-in",
   "/sign-up",
-  "/welcome",
-  "/api/trpc"
+  "/onboarding",
+  "/api/trpc",
+  "/api/user/debug",
+  "/api/user/set-role"
 ];
 
 const isPublicRoute = createRouteMatcher(
@@ -20,55 +28,83 @@ const isPublicRoute = createRouteMatcher(
 // Create route matchers for protected routes
 const isOrganizerRoute = createRouteMatcher(["/organizer(.*)"]);
 const isAdminRoute = createRouteMatcher(["/admin(.*)"]);
-const isWelcomePage = createRouteMatcher(["/welcome"]);
+const isOnboardingPage = createRouteMatcher(["/onboarding"]);
+const isHomePage = createRouteMatcher(["/"]);
+const isDebugRoute = createRouteMatcher(["/api/user/debug", "/api/user/set-role"]);
 
 export default clerkMiddleware(async (auth, req) => {
+  // Skip all checks for debug route
+  if (isDebugRoute(req)) {
+    return NextResponse.next();
+  }
+
   // If the route is not public, protect it
   if (!isPublicRoute(req)) {
     await auth.protect();
   }
 
   // For authenticated requests, enforce role-based access
-  const { userId, sessionClaims } = await auth();
+  const { userId, sessionClaims, session } = await auth();
   
   if (userId) {
-    // Check role from multiple possible locations
-    // 1. Check directly in sessionClaims.role (if set in publicMetadata.role)
-    // 2. Check in sessionClaims.publicMetadata.role
-    // 3. Check in sessionClaims.metadata.role (older Clerk structure)
-    const publicMetadata = sessionClaims?.publicMetadata as Record<string, unknown> | undefined;
-    const metadata = sessionClaims?.metadata as Record<string, unknown> | undefined;
+    // Get user role and onboarding status from session claims - first check direct role claim
+    let role = sessionClaims?.role as string | undefined;
+    let onboardingComplete = false;
     
-    const roleFromSession = 
-      (sessionClaims?.role as string | undefined) || 
-      (publicMetadata?.role as string | undefined) || 
-      (metadata?.role as string | undefined);
+    // If metadata is available in session claims, use it
+    if (sessionClaims?.metadata) {
+      const metadata = sessionClaims.metadata as Record<string, unknown>;
+      
+      // Only override role if it's not already set from direct claim
+      if (!role) {
+        role = metadata.role as string | undefined;
+      }
+      
+      onboardingComplete = metadata.onboardingComplete as boolean || false;
+      console.log(`User ${userId} metadata from JWT:`, { role, onboardingComplete });
+    }
     
-    // If user has no role and is not already on the welcome page, redirect to onboarding
-    if (roleFromSession === null || roleFromSession === undefined) {
-      if (!isWelcomePage(req) && !isPublicRoute(req)) {
-        console.log(`User ${userId} has no role, redirecting to onboarding`);
-        return NextResponse.redirect(new URL("/welcome", req.url));
+    // Check if user needs to complete onboarding
+    if ((!role || !onboardingComplete) && !isOnboardingPage(req) && !isDebugRoute(req)) {
+      // Before redirecting, check Clerk directly to avoid redirect loops
+      try {
+        // Get latest user data directly from Clerk API
+        const userFromClerk = await clerkClient.users.getUser(userId);
+        const clerkMetadata = userFromClerk.publicMetadata as Record<string, unknown>;
+        
+        // If Clerk has the role and onboarding complete, allow access
+        if (clerkMetadata.role && clerkMetadata.onboardingComplete) {
+          console.log(`User ${userId} has completed onboarding in Clerk but JWT not updated yet`);
+          return NextResponse.next();
+        }
+        
+        // Otherwise redirect to onboarding
+        console.log(`User ${userId} needs to complete onboarding, redirecting`);
+        return NextResponse.redirect(new URL("/onboarding", req.url));
+      } catch (error) {
+        console.error(`Error checking user data from Clerk:`, error);
+        // Fall back to redirecting to onboarding on error
+        return NextResponse.redirect(new URL("/onboarding", req.url));
       }
     } else {
-      console.log(`User ${userId} has role: ${roleFromSession}`);
+      console.log(`User ${userId} has role: ${role}`);
       
       // Handle organizer routes
       if (
         isOrganizerRoute(req) &&
-        roleFromSession !== "organizer" &&
-        roleFromSession !== "admin"
+        role !== "organizer" &&
+        role !== "admin"
       ) {
         console.log(
-          `Unauthorized access to organizer route by user with role ${roleFromSession}`,
+          `Unauthorized access to organizer route by user with role ${role}`,
         );
         return NextResponse.redirect(new URL("/", req.url));
       }
 
       // Handle admin routes
-      if (isAdminRoute(req) && roleFromSession !== "admin") {
+      if (isAdminRoute(req) && role !== "admin") {
         console.log(
-          `Unauthorized access to admin route by user with role ${roleFromSession}`,
+          `Unauthorized access to admin route by user with role ${role}`,
         );
         return NextResponse.redirect(new URL("/", req.url));
       }

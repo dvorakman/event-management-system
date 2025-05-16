@@ -38,7 +38,10 @@ export default function RoleSelectionForm({ userId }: RoleSelectionFormProps) {
           "Content-Type": "application/json",
           "Accept": "application/json"
         },
-        body: JSON.stringify({ role }),
+        body: JSON.stringify({ 
+          role,
+          onboardingComplete: true // Add onboardingComplete flag
+        }),
       });
       
       console.log("Response received:", {
@@ -70,19 +73,23 @@ export default function RoleSelectionForm({ userId }: RoleSelectionFormProps) {
         throw new Error(data.message || "Failed to set role");
       }
       
-      console.log("Role set successfully:", data);
+      console.log("Role and onboarding status set successfully:", data);
       setSuccess(`You've been registered as a${role === "organizer" ? "n organizer" : " user"}.`);
       
-      // Force a session refresh to get the new claims with updated role
+      // Force a session refresh to get the new claims with updated role and onboarding status
       console.log("Forcing session refresh...");
       
-      // Wait a short moment to show success message
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
+      // Perform multiple session reloads with delays to ensure token sync
       try {
-        // Use reloadSession to refresh the Clerk session with updated claims
+        // First reload attempt
+        await new Promise(resolve => setTimeout(resolve, 1000));
         await reloadSession();
-        console.log("Session refreshed successfully");
+        console.log("First session refresh completed");
+        
+        // Second reload attempt after short delay
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        await reloadSession();
+        console.log("Second session refresh completed");
       } catch (sessionError) {
         console.error("Error refreshing session:", sessionError);
         // Continue anyway since the role was set successfully

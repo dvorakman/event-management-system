@@ -37,7 +37,7 @@ export const users = createTable(
     lastName: text("last_name"),
     username: text("username"),
     profileImage: text("profile_image"),
-    role: userRole("role").default("user").notNull(),
+    role: userRole("role"),
     externalId: text("external_id"),
     metadata: text("metadata"), // JSON string for additional Clerk metadata
     lastSignInAt: timestamp("last_sign_in_at", { withTimezone: true }),
@@ -47,7 +47,6 @@ export const users = createTable(
     updatedAt: timestamp("updated_at", { withTimezone: true }).$onUpdate(
       () => new Date(),
     ),
-    becameOrganizerAt: timestamp("became_organizer_at"),
   },
   (table) => ({
     emailIdx: index("email_idx").on(table.email),

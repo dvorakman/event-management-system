@@ -204,20 +204,50 @@ export const protectedProcedure = t.procedure
       headers: Object.fromEntries(ctx.headers.entries()),
     });
 
-    if (!ctx.userId || !ctx.dbUser) {
-      console.log("[TRPC Protected] No userId or dbUser found");
+    if (!ctx.userId) {
+      console.log("[TRPC Protected] No userId found");
       throw new TRPCError({
         code: "UNAUTHORIZED",
         message: "You must be logged in to access this resource",
       });
     }
 
+    // Get current user to access JWT claims
+    const session = await auth();
+    const { sessionClaims } = session;
+    
+    // Extract role from JWT claims - first check direct role claim, then metadata
+    let role = sessionClaims?.role as string | undefined;
+    
+    // If role is not found directly, check metadata
+    if (!role && sessionClaims?.metadata) {
+      const metadata = sessionClaims.metadata as Record<string, unknown>;
+      role = metadata.role as string | undefined;
+    }
+    
+    // Also extract onboardingComplete flag
+    let onboardingComplete = false;
+    if (sessionClaims?.metadata) {
+      const metadata = sessionClaims.metadata as Record<string, unknown>;
+      onboardingComplete = metadata.onboardingComplete as boolean || false;
+    }
+    
+    console.log("[TRPC Protected] User info from JWT:", { 
+      role, 
+      onboardingComplete,
+      hasMetadata: !!sessionClaims?.metadata
+    });
+
     return next({
       ctx: {
         ...ctx,
         // Ensure these are available in the procedure
         userId: ctx.userId,
-        dbUser: ctx.dbUser,
+        // Pass database user for non-role data
+        dbUser: ctx.dbUser || null,
+        // Add role and onboarding status from JWT to the context
+        userRole: role || null,
+        onboardingComplete,
       },
     });
   });
