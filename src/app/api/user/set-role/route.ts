@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getAuth, clerkClient } from "@clerk/nextjs/server";
+import { getAuth } from "@clerk/nextjs/server";
+import { createClerkClient } from "@clerk/backend";
 import { db } from "~/server/db";
 import { users } from "~/server/db/schema";
 import { eq } from "drizzle-orm";
+
+// Create a proper Clerk client with the secret key
+const clerk = createClerkClient({ secretKey: process.env.CLERK_SECRET_KEY });
 
 export async function POST(request: NextRequest) {
   try {
@@ -28,9 +32,15 @@ export async function POST(request: NextRequest) {
     }
     
     // Update the user's metadata in Clerk
-    await clerkClient.users.updateUser(userId, {
-      publicMetadata: { role },
-    });
+    try {
+      await clerk.users.updateUser(userId, {
+        publicMetadata: { role },
+      });
+      console.log(`Updated Clerk metadata with role: ${role} for user ${userId}`);
+    } catch (error) {
+      console.error("Error updating Clerk metadata:", error);
+      // Continue even if Clerk update fails
+    }
     
     // If becoming an organizer, update the becameOrganizerAt field in our database
     if (role === "organizer") {

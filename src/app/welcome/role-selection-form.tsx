@@ -20,6 +20,8 @@ export default function RoleSelectionForm({ userId }: RoleSelectionFormProps) {
     setError(null);
     setSuccess(null);
     
+    console.log(`Setting role for user ${userId} to: ${role}`);
+    
     try {
       // Call our API endpoint to update the user's role
       const response = await fetch("/api/user/set-role", {
@@ -28,18 +30,22 @@ export default function RoleSelectionForm({ userId }: RoleSelectionFormProps) {
         body: JSON.stringify({ role }),
       });
       
+      const data = await response.json();
+      
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || "Failed to set role");
+        throw new Error(data.message || "Failed to set role");
       }
       
+      console.log("Role set successfully:", data);
       setSuccess(`You've been registered as a${role === "organizer" ? "n organizer" : " user"}.`);
       
       // Short timeout before redirect to show success message
       setTimeout(() => {
         // Redirect to the appropriate dashboard based on role
-        router.push(role === "organizer" ? "/organizer/dashboard" : "/dashboard");
-      }, 1000);
+        const redirectUrl = role === "organizer" ? "/organizer/dashboard" : "/dashboard";
+        console.log(`Redirecting user to ${redirectUrl}`);
+        router.push(redirectUrl);
+      }, 1500);
     } catch (error) {
       console.error("Error setting role:", error);
       setError(error instanceof Error ? error.message : "Failed to set role. Please try again.");
@@ -88,12 +94,12 @@ export default function RoleSelectionForm({ userId }: RoleSelectionFormProps) {
         </Card>
       </div>
       
-      <div className="text-center text-sm text-gray-500">
-        <p>You can't change your role later, so please select carefully.</p>
+      <div className="text-center text-sm text-gray-500 mt-4">
+        <p>You can always change your role later by visiting your account settings.</p>
       </div>
       
       {isLoading && (
-        <div className="flex justify-center">
+        <div className="flex justify-center mt-4">
           <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
         </div>
       )}

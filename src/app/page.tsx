@@ -56,15 +56,6 @@ export default async function Home() {
                         Go to Dashboard
                       </Button>
                     </Link>
-                    <Link href="/become-organizer">
-                      <Button
-                        variant="outline"
-                        size="lg"
-                        className="w-full sm:w-auto"
-                      >
-                        Become an Organizer
-                      </Button>
-                    </Link>
                   </SignedIn>
                 </div>
               </div>

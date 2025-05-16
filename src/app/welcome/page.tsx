@@ -1,6 +1,6 @@
 import { type Metadata } from "next";
 import { getAuth } from "@clerk/nextjs/server";
-import { clerkClient } from "@clerk/nextjs";
+import { createClerkClient } from "@clerk/backend";
 import { redirect } from "next/navigation";
 import RoleSelectionForm from "./role-selection-form";
 
@@ -18,25 +18,37 @@ export default async function WelcomePage() {
     redirect("/sign-in");
   }
   
-  // Fetch user details from Clerk
-  const user = await clerkClient.users.getUser(userId);
+  // Initialize Clerk client with secret key
+  const clerk = createClerkClient({ secretKey: process.env.CLERK_SECRET_KEY });
   
-  console.log("Session claims:", sessionClaims); // Debug log
+  // Fetch user details from Clerk
+  const user = await clerk.users.getUser(userId);
   
   // Check for role in various possible places
+  const publicMetadata = user.publicMetadata || {};
   const userRole = 
     sessionClaims?.role || 
-    user.publicMetadata?.role as string || 
+    publicMetadata.role as string || 
     null;
   
-  console.log("Detected role:", userRole); // Debug log
+  console.log("Welcome page - User info:", { 
+    userId, 
+    email: user.emailAddresses[0]?.emailAddress,
+    role: userRole,
+    sessionClaimsRole: sessionClaims?.role,
+    publicMetadataRole: publicMetadata.role,
+  });
   
   // If user already has a role, redirect them to the appropriate dashboard
   if (userRole === "organizer") {
+    console.log(`User ${userId} is already an organizer, redirecting to organizer dashboard`);
     redirect("/organizer/dashboard");
   } else if (userRole === "user") {
+    console.log(`User ${userId} is already a regular user, redirecting to dashboard`);
     redirect("/dashboard");
   }
+  
+  console.log(`User ${userId} has no role set, showing role selection form`);
   
   return (
     <div className="flex justify-center items-center min-h-screen bg-gray-50">
