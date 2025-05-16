@@ -21,7 +21,7 @@ export async function syncUser(clerkUser: User) {
   const userData = {
     id: clerkUser.id,
     email,
-    name: firstName && lastName ? `${firstName} ${lastName}` : username,
+    name: firstName && lastName ? `${firstName} ${lastName}` : username || email,
     imageUrl: clerkUser.imageUrl ?? "",
     updatedAt: new Date(),
   };
@@ -50,14 +50,9 @@ export async function syncUser(clerkUser: User) {
       // Create new user with role from Clerk if it exists
       const insertData = {
         ...userData,
-        role: clerkRole as UserRole | null, // Use role from Clerk or null
+        role: (clerkRole as UserRole) || "user", // Default to 'user' if no role specified
         createdAt: new Date(),
       };
-      
-      // If user is an organizer, set becameOrganizerAt
-      if (clerkRole === "organizer") {
-        insertData.becameOrganizerAt = new Date();
-      }
       
       const [newUser] = await db
         .insert(users)

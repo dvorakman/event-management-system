@@ -19,7 +19,6 @@
     "start": "next start",
     "generate-test-data": "bun scripts/generate-test-data.ts",
     "sync-users": "bun src/server/db/sync-users.ts",
-    "test:org-membership": "bun src/server/db/test-org-membership.ts",
     "cy:open": "cypress open",
     "cy:run": "cypress run",
     "test:e2e": "start-server-and-test dev http://localhost:3000 cy:run",

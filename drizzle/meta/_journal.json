@@ -2,26 +2,5 @@
   "version": "6",
   "dialect": "postgresql",
   "entries": [
-    {
-      "idx": 0,
-      "version": "7",
-      "when": 1743295953434,
-      "tag": "0000_tired_proudstar",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1743298430719,
-      "tag": "0001_needy_morlocks",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1743565710354,
-      "tag": "0002_bouncy_blue_marvel",
-      "breakpoints": true
-    }
   ]
 }

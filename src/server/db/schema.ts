@@ -27,20 +27,16 @@ export const createTable = pgTableCreator(
 
 export const userRole = pgEnum("user_role", ["user", "organizer", "admin"]);
 
-// Users table (although we're using Clerk for auth, we still need to store some user data)
+// Users table - stores Clerk ID and minimal profile data for relationship tracking
+// Auth and role management primarily handled by Clerk
 export const users = createTable(
   "user",
   {
-    id: text("id").primaryKey(), // Clerk's user ID
+    id: text("id").primaryKey(), // Clerk's user ID as the primary key
     email: text("email").notNull(),
-    firstName: text("first_name"),
-    lastName: text("last_name"),
-    username: text("username"),
-    profileImage: text("profile_image"),
-    role: userRole("role"),
-    externalId: text("external_id"),
-    metadata: text("metadata"), // JSON string for additional Clerk metadata
-    lastSignInAt: timestamp("last_sign_in_at", { withTimezone: true }),
+    name: text("name").notNull(),
+    imageUrl: text("image_url"),
+    role: userRole("role").default("user").notNull(), // Local mirror of role for easier querying
     createdAt: timestamp("created_at", { withTimezone: true })
       .default(sql`CURRENT_TIMESTAMP`)
       .notNull(),
@@ -50,7 +46,6 @@ export const users = createTable(
   },
   (table) => ({
     emailIdx: index("email_idx").on(table.email),
-    usernameIdx: index("username_idx").on(table.username),
   }),
 );
 
