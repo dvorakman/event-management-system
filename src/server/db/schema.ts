@@ -12,6 +12,7 @@ import {
   decimal,
   boolean,
   pgEnum,
+  uuid,
 } from "drizzle-orm/pg-core";
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 
@@ -53,7 +54,7 @@ export const users = createTable(
 export const events = createTable(
   "event",
   {
-    id: integer("id").primaryKey().generatedByDefaultAsIdentity(),
+    id: uuid("id").primaryKey().defaultRandom(),
     name: text("name").notNull(),
     description: text("description").notNull(),
     startDate: timestamp("start_date", { withTimezone: true }).notNull(),
@@ -99,11 +100,11 @@ export const events = createTable(
 export const registrations = createTable(
   "registration",
   {
-    id: integer("id").primaryKey().generatedByDefaultAsIdentity(),
+    id: uuid("id").primaryKey().defaultRandom(),
     userId: text("user_id")
       .notNull()
       .references(() => users.id),
-    eventId: integer("event_id")
+    eventId: uuid("event_id")
       .notNull()
       .references(() => events.id),
     ticketType: text("ticket_type", { enum: ["general", "vip"] }).notNull(),
@@ -136,8 +137,8 @@ export const registrations = createTable(
 export const tickets = createTable(
   "ticket",
   {
-    id: integer("id").primaryKey().generatedByDefaultAsIdentity(),
-    registrationId: integer("registration_id")
+    id: uuid("id").primaryKey().defaultRandom(),
+    registrationId: uuid("registration_id")
       .notNull()
       .references(() => registrations.id),
     ticketNumber: text("ticket_number").notNull(),
@@ -157,7 +158,7 @@ export const tickets = createTable(
 export const notifications = createTable(
   "notification",
   {
-    id: integer("id").primaryKey().generatedByDefaultAsIdentity(),
+    id: uuid("id").primaryKey().defaultRandom(),
     userId: text("user_id")
       .notNull()
       .references(() => users.id),
@@ -167,7 +168,7 @@ export const notifications = createTable(
       enum: ["registration", "reminder", "cancellation", "update"],
     }).notNull(),
     isRead: boolean("is_read").default(false).notNull(),
-    eventId: integer("event_id").references(() => events.id),
+    eventId: uuid("event_id").references(() => events.id),
     createdAt: timestamp("created_at", { withTimezone: true })
       .default(sql`CURRENT_TIMESTAMP`)
       .notNull(),
@@ -175,24 +176,6 @@ export const notifications = createTable(
   (table) => ({
     userIdx: index("notification_user_idx").on(table.userId),
     eventNotificationIdx: index("event_notification_idx").on(table.eventId),
-  }),
-);
-
-// Posts table (keep this for compatibility with existing code)
-export const posts = createTable(
-  "post",
-  {
-    id: integer("id").primaryKey().generatedByDefaultAsIdentity(),
-    name: varchar("name", { length: 256 }),
-    createdAt: timestamp("createdAt", { withTimezone: true })
-      .default(sql`CURRENT_TIMESTAMP`)
-      .notNull(),
-    updatedAt: timestamp("updatedAt", { withTimezone: true }).$onUpdate(
-      () => new Date(),
-    ),
-  },
-  (example) => ({
-    nameIndex: index("name_idx").on(example.name),
   }),
 );
 
@@ -216,10 +199,6 @@ export const selectTicketSchema = createSelectSchema(tickets);
 export const insertNotificationSchema = createInsertSchema(notifications);
 export const selectNotificationSchema = createSelectSchema(notifications);
 
-// Schema for inserting a post (keep this for compatibility)
-export const insertPostSchema = createInsertSchema(posts);
-export const selectPostSchema = createSelectSchema(posts);
-
 // Export the query builder
 export const queries = {
   users,
@@ -227,7 +206,6 @@ export const queries = {
   registrations,
   tickets,
   notifications,
-  posts,
 } as const;
 
 // Schema type exports
