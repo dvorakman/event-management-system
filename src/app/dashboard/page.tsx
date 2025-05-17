@@ -204,11 +204,6 @@ function DashboardContent() {
                 >
                   View My Tickets
                 </Button>
-                <Link href="/become-organizer">
-                  <Button variant="outline" className="w-full">
-                    Become an Organizer
-                  </Button>
-                </Link>
               </CardContent>
             </Card>
           </div>

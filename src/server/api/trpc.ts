@@ -14,7 +14,6 @@ import { eq } from "drizzle-orm";
 
 import { db } from "~/server/db";
 import { users } from "~/server/db/schema";
-import { syncUser } from "~/server/auth/sync-user";
 import { env } from "~/env";
 
 /**
@@ -47,70 +46,67 @@ export const createTRPCContext = async (opts: { headers: Headers }) => {
     sessionId: session.sessionId,
   });
 
+  // Extract user info from JWT claims
+  const { sessionClaims } = session;
+  let role = null;
+  let onboardingComplete = false;
+  
+  if (sessionClaims) {
+    // Extract role from JWT claims - first check direct role claim, then metadata
+    role = sessionClaims.role as string | undefined;
+    
+    // If role is not found directly, check metadata
+    if (!role && sessionClaims.metadata) {
+      const metadata = sessionClaims.metadata as Record<string, unknown>;
+      role = metadata.role as string | undefined;
+    }
+    
+    // Extract onboardingComplete flag
+    if (sessionClaims.metadata) {
+      const metadata = sessionClaims.metadata as Record<string, unknown>;
+      onboardingComplete = metadata.onboardingComplete as boolean || false;
+    }
+  }
+
   // If there's no userId, return minimal context
   if (!userId) {
     console.log("[TRPC Context] No userId found");
     return {
       db,
       headers: opts.headers,
+      userRole: null,
+      onboardingComplete: false,
     };
   }
 
-  // Get the current user from Clerk
-  const clerkUser = await currentUser();
-  console.log("[TRPC Context] Clerk user:", {
-    id: clerkUser?.id,
-    email: clerkUser?.emailAddresses?.[0]?.emailAddress,
-  });
-
-  if (!clerkUser) {
-    console.log("[TRPC Context] No Clerk user found");
-    return {
-      db,
-      userId,
-      headers: opts.headers,
-    };
-  }
-
+  // Check if user exists in our database (for foreign key relationships only)
   try {
-    // Always sync in development/preview, or if user doesn't exist in database
     const dbUser = await db.query.users.findFirst({
       where: eq(users.id, userId),
     });
-    console.log("[TRPC Context] DB user:", { id: dbUser?.id });
-
-    const isDevelopment = !process.env.VERCEL_ENV || process.env.VERCEL_ENV !== "production";
-    console.log("[TRPC Context] Environment:", {
-      isDevelopment,
-      VERCEL_ENV: process.env.VERCEL_ENV,
-    });
-
-    if (!dbUser || isDevelopment) {
-      console.log("[TRPC Context] Syncing user from Clerk");
-      const syncedUser = await syncUser(clerkUser);
-      return {
-        db,
-        userId,
-        dbUser: syncedUser,
-        headers: opts.headers,
-      };
+    
+    // If user doesn't exist in our database yet, create a minimal entry for foreign key references
+    if (!dbUser) {
+      console.log("[TRPC Context] Creating minimal user entry for foreign key references");
+      await db.insert(users).values({
+        id: userId,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
     }
-
-    return {
-      db,
-      userId,
-      dbUser,
-      headers: opts.headers,
-    };
   } catch (error) {
     console.error("[TRPC Context] Database error:", error);
-    // Return basic context if database operations fail
-    return {
-      db,
-      userId,
-      headers: opts.headers,
-    };
+    // Non-fatal error, continue with context
   }
+
+  // Return context with user info from Clerk
+  return {
+    db,
+    userId,
+    headers: opts.headers,
+    userRole: role,
+    onboardingComplete,
+  };
 };
 
 /**
@@ -200,24 +196,59 @@ export const protectedProcedure = t.procedure
   .use(async ({ ctx, next }) => {
     console.log("[TRPC Protected] Context:", {
       userId: ctx.userId,
-      hasDbUser: !!ctx.dbUser,
+      userRole: ctx.userRole,
       headers: Object.fromEntries(ctx.headers.entries()),
     });
 
-    if (!ctx.userId || !ctx.dbUser) {
-      console.log("[TRPC Protected] No userId or dbUser found");
+    if (!ctx.userId) {
+      console.log("[TRPC Protected] No userId found");
       throw new TRPCError({
         code: "UNAUTHORIZED",
         message: "You must be logged in to access this resource",
       });
     }
-
+    
     return next({
       ctx: {
         ...ctx,
-        // Ensure these are available in the procedure
+        // Pass userId and role info to the procedure
         userId: ctx.userId,
-        dbUser: ctx.dbUser,
+        userRole: ctx.userRole,
+        onboardingComplete: ctx.onboardingComplete,
       },
     });
+  });
+
+/**
+ * Organizer procedure
+ * 
+ * This procedure ensures the user has the organizer role
+ */
+export const organizerProcedure = protectedProcedure
+  .use(async ({ ctx, next }) => {
+    if (ctx.userRole !== "organizer" && ctx.userRole !== "admin") {
+      throw new TRPCError({
+        code: "FORBIDDEN",
+        message: "You must be an organizer to access this resource",
+      });
+    }
+    
+    return next({ ctx });
+  });
+
+/**
+ * Admin procedure
+ * 
+ * This procedure ensures the user has the admin role
+ */
+export const adminProcedure = protectedProcedure
+  .use(async ({ ctx, next }) => {
+    if (ctx.userRole !== "admin") {
+      throw new TRPCError({
+        code: "FORBIDDEN",
+        message: "You must be an admin to access this resource",
+      });
+    }
+    
+    return next({ ctx });
   });

@@ -90,7 +90,7 @@ event-management-system/
 │   │   ├── api/                  # API routes
 │   │   │   ├── trpc/             # tRPC route
 │   │   │   └── webhooks/         # Webhook handlers
-│   │   ├── become-organizer/     # Organizer application
+│   │   ├── welcome/              # Role selection onboarding
 │   │   ├── events/               # Event discovery
 │   │   │   └── [id]/             # Event details
 │   │   ├── organizer/            # Organizer dashboard
@@ -240,19 +240,20 @@ The application uses Clerk for authentication with a synchronized user model in 
 1. **User Registration/Login**:
 
    - User authenticates through Clerk
-   - User data is synced to our database
+   - New users are redirected to the welcome page to select a role
+   - User data is synced to our database with the selected role
 
 2. **User Role Management**:
 
-   - Default role is "user"
-   - Users can apply to become "organizer"
-   - Admin can approve/reject organizer applications
+   - Users select their role during onboarding (after signup)
+   - Roles are strictly separated - users can be either "user" or "organizer"
+   - Role information is stored in Clerk's public metadata and synced to the database
 
 3. **Authentication Middleware**:
 
-   - `clerkMiddleware` protects routes based on authentication status
+   - `clerkMiddleware` protects routes based on authentication status and role
    - Public routes are accessible without authentication
-   - Protected routes require authentication
+   - Role-specific routes are protected based on user role
 
 4. **Server-Side Authentication**:
    - Server components use `currentUser()` from Clerk
@@ -383,7 +384,7 @@ The frontend is built using React components organized by feature:
 - `EventsPage`: Event discovery and filtering
 - `EventDetailPage`: Individual event details
 - `OrganizerDashboardPage`: Dashboard for event organizers
-- `BecomeOrganizerPage`: Form to apply for organizer role
+- `WelcomePage`: Onboarding page for role selection
 
 ### Reusable Components
 

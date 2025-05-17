@@ -1,12 +1,12 @@
 import { type User } from "@clerk/nextjs/server";
-import { clerkClient } from "@clerk/nextjs/server";
+import { createClerkClient } from "@clerk/backend";
 import { db } from "~/server/db";
 import { users } from "~/server/db/schema";
 import { eq } from "drizzle-orm";
 import type { UserRole } from "~/server/db/schema";
 
-// We'll use the clerkClient from @clerk/nextjs instead of creating a new client
-const clerk = clerkClient;
+// Create a proper Clerk client with the secret key
+const clerk = createClerkClient({ secretKey: process.env.CLERK_SECRET_KEY });
 
 export async function syncUser(clerkUser: User) {
   const email = clerkUser.emailAddresses[0]?.emailAddress ?? "";
@@ -14,10 +14,14 @@ export async function syncUser(clerkUser: User) {
   const lastName = clerkUser.lastName ?? "";
   const username = clerkUser.username ?? "";
 
+  // Get the role from Clerk's metadata
+  const clerkRole = (clerkUser.publicMetadata?.role as string) || null;
+  console.log(`Syncing user ${clerkUser.id} with role from Clerk: ${clerkRole || 'null'}`);
+
   const userData = {
     id: clerkUser.id,
     email,
-    name: firstName && lastName ? `${firstName} ${lastName}` : username,
+    name: firstName && lastName ? `${firstName} ${lastName}` : username || email,
     imageUrl: clerkUser.imageUrl ?? "",
     updatedAt: new Date(),
   };
@@ -28,50 +32,35 @@ export async function syncUser(clerkUser: User) {
       where: eq(users.id, clerkUser.id),
     });
 
-    // Define the return type explicitly to avoid any type
-    let dbUser: { id: string; role: UserRole } | undefined;
-
     if (existingUser) {
-      // Update existing user
+      // Update existing user, including role from Clerk if it exists
+      const updateData = {
+        ...userData,
+        ...(clerkRole && { role: clerkRole as UserRole }),
+      };
+      
       const [updatedUser] = await db
         .update(users)
-        .set(userData)
+        .set(updateData)
         .where(eq(users.id, clerkUser.id))
         .returning();
-      dbUser = updatedUser;
+      
+      return updatedUser;
     } else {
-      // Create new user
+      // Create new user with role from Clerk if it exists
+      const insertData = {
+        ...userData,
+        role: (clerkRole as UserRole) || "user", // Default to 'user' if no role specified
+        createdAt: new Date(),
+      };
+      
       const [newUser] = await db
         .insert(users)
-        .values({
-          ...userData,
-          role: "user", // Default role for new users
-          createdAt: new Date(),
-        })
+        .values(insertData)
         .returning();
-      dbUser = newUser;
+      
+      return newUser;
     }
-
-    // Sync the user's role to Clerk's publicMetadata
-    if (dbUser) {
-      // Only update if the role in Clerk metadata doesn't match our DB
-      const clerkRole = (clerkUser.publicMetadata?.role as string) || "";
-      if (clerkRole !== dbUser.role) {
-        try {
-          await clerk.users.updateUser(clerkUser.id, {
-            publicMetadata: {
-              ...clerkUser.publicMetadata,
-              role: dbUser.role,
-            },
-          });
-          console.log(`Updated Clerk metadata with role: ${dbUser.role}`);
-        } catch (error) {
-          console.error("Error updating Clerk metadata:", error);
-        }
-      }
-    }
-
-    return dbUser;
   } catch (error) {
     console.error("Error syncing user:", error);
     throw error;
