@@ -202,11 +202,19 @@ async function main() {
 
   console.log(`\n🎫 Generating registrations based on occupancy targets...\n`);
 
-  // Generate registrations based on occupancy targets
+  // Generate registrations based on occupancy targets (only for published events)
   let totalRegistrations = 0;
   const userEventPairs = new Set<string>(); // Track user-event pairs to prevent duplicates
 
   for (const event of eventData) {
+    // Skip draft events - they shouldn't have any registrations
+    const eventRecord = await db.select().from(events).where(eq(events.id, event.id)).limit(1);
+    
+    if (!eventRecord[0] || eventRecord[0].status === "draft") {
+      console.log(`⏩ Skipping registrations for draft event: ${event.id}`);
+      continue;
+    }
+    
     const targetRegistrations = Math.floor(event.capacity * event.target);
     let registrationsCreated = 0;
     let attempts = 0;
