@@ -107,7 +107,7 @@ export default function OrganizerDashboardPage() {
                       <div>
                         <p className="font-medium">{reg.eventName}</p>
                         <p className="text-sm text-muted-foreground">
-                          {reg.ticketType} ticket - ${reg.amount}
+                          {reg.ticketType} ticket - ${Number(reg.amount).toFixed(2)}
                         </p>
                       </div>
                       <p className="text-sm text-muted-foreground">
