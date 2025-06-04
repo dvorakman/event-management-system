@@ -33,6 +33,13 @@
     --ring: 36 100% 50%; /* #ff9900 Brand Orange */
 
     --radius: 0.5rem;
+
+    /* Chart Colors */
+    --chart-1: 12 76% 61%; /* Warm Red */
+    --chart-2: 173 58% 39%; /* Teal */
+    --chart-3: 197 37% 24%; /* Dark Blue */
+    --chart-4: 43 74% 66%; /* Yellow */
+    --chart-5: 27 87% 67%; /* Orange */
   }
 
   .dark {
@@ -63,6 +70,13 @@
     --border: 210 14% 47%; /* #64748b Slate Gray */
     --input: 210 14% 47%; /* #64748b Slate Gray */
     --ring: 36 100% 50%; /* #ff9900 Brand Orange */
+
+    /* Chart Colors - Dark Theme */
+    --chart-1: 220 70% 50%; /* Bright Blue */
+    --chart-2: 160 60% 45%; /* Mint Green */
+    --chart-3: 30 80% 55%; /* Warm Orange */
+    --chart-4: 280 65% 60%; /* Purple */
+    --chart-5: 340 75% 55%; /* Pink */
   }
 }
 

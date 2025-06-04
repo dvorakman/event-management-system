@@ -70,7 +70,7 @@ export function Header({ isLoading }: { isLoading?: boolean }) {
                   </li>
                   <li>
                     <Link
-                      href="/become-organizer"
+                      href="/onboarding"
                       className="text-sm font-medium text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-50"
                     >
                       Become an Organizer
