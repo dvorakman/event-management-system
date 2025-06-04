@@ -206,13 +206,13 @@ async function main() {
   let totalRegistrations = 0;
   const userEventPairs = new Set<string>(); // Track user-event pairs to prevent duplicates
 
-  for (const event of eventData) {
+  await Promise.all(eventData.map(async (event) => {
     // Skip draft events - they shouldn't have any registrations
     const eventRecord = await db.select().from(events).where(eq(events.id, event.id)).limit(1);
     
     if (!eventRecord[0] || eventRecord[0].status === "draft") {
       console.log(`⏩ Skipping registrations for draft event: ${event.id}`);
-      continue;
+      return;
     }
     
     const targetRegistrations = Math.floor(event.capacity * event.target);
