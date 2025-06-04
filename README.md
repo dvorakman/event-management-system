@@ -42,11 +42,29 @@ This project uses Docker Compose for a consistent and simplified local developme
     docker-compose exec app bun run db:migrate
     ```
 
-5.  **(Optional) Generate Test Data**
-    Similar to migrations, run this inside the `app` container:
-    ```bash
-    docker-compose exec app bun run db:generate-test-data
-    ```
+5.  **(Optional) Generate Test Data and Sync Clerk Users**
+
+After running migrations, you may want to populate your database with realistic test data and ensure all Clerk users are synced to your local database. This is especially useful for development, testing, and demos.
+
+### **Sync Clerk Users to the Database**
+This script pulls all users from Clerk (both organizers and regular users) and upserts them into your local database. This ensures your app's user table matches Clerk as the source of truth.
+
+```bash
+# Inside the app container:
+docker-compose exec app bun run scripts/sync-clerk-users.ts
+```
+
+### **Generate Synthetic Test Data**
+This script generates realistic events, registrations, tickets, and notifications, linking them to the Clerk users in your database. You must have both organizers and regular users in Clerk for the data to be realistic.
+
+```bash
+# Inside the app container:
+docker-compose exec app bun run scripts/generate-synthetic-data.ts
+```
+
+**Note:**
+- You can run database commands (migrations, test data generation, Clerk sync, etc.) either inside the Docker container **or** directly on your host machine, as long as your `DATABASE_URL` in your environment points to the running Docker database. The only requirement is that the database container is running and accessible.
+- The provided `docker-compose exec app ...` commands are recommended for consistency, but running `bun run ...` directly on your host will work if your environment is set up correctly.
 
 **Common Docker Commands:**
 
@@ -196,48 +214,7 @@ This project uses [Clerk](https://clerk.com/) for authentication and user manage
 
 2. **Authentication Flow**
 
-   The authentication flow is handled by Clerk's middleware, which protects routes based on authentication status:
-
-   - Public routes (accessible without authentication): Home page, Events listing, Sign-in, Sign-up
-   - Protected routes: User profile, Organizer dashboard, Tickets, etc.
-
-3. **Middleware Implementation**
-
-   The application uses Clerk's recommended `clerkMiddleware()` approach for route protection:
-
-   ```typescript
-   import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
-
-   // Define public routes that don't require authentication
-   const publicRoutes = ["/", "/events", "/sign-in", "/sign-up", "/api/trpc"];
-   const isPublicRoute = createRouteMatcher(
-     publicRoutes.map((route) =>
-       route === "/api/trpc" ? `${route}(.*)` : route,
-     ),
-   );
-
-   export default clerkMiddleware(async (auth, req) => {
-     // If the route is not public, protect it
-     if (!isPublicRoute(req)) {
-       await auth().protect();
-     }
-   });
-   ```
-
-4. **Authentication Components**
-
-   Clerk provides various components for managing authentication:
-
-   - `<SignIn />`: Pre-built sign-in component
-   - `<SignUp />`: Pre-built sign-up component
-   - `<UserButton />`: User profile and account management
-   - `<SignedIn>` and `<SignedOut>`: Conditional rendering based on authentication status
-
-### Authentication Development Notes
-
-- The project initially used the deprecated `authMiddleware` but has been updated to use the new `clerkMiddleware()` approach.
-- For testing locally, you can use Clerk's development keys or "keyless mode" for faster development.
-- Always test authentication flows after making changes to the middleware.
+   The authentication flow is handled by Clerk's middleware, which protects routes based on authentication status.
 
 ## Deployment on Vercel
 

@@ -7,6 +7,7 @@ import { ClerkProvider } from "@clerk/nextjs";
 import { TRPCReactProvider } from "~/trpc/react";
 import { Header } from "./_components/Header";
 import { ThemeProvider } from "~/components/theme-provider";
+import { Toaster } from "~/components/ui/toaster";
 
 export const metadata: Metadata = {
   title: "Event Management System",
@@ -31,6 +32,7 @@ export default function RootLayout({
                 <Header />
                 <main className="flex-1">{children}</main>
               </div>
+              <Toaster />
             </ThemeProvider>
           </TRPCReactProvider>
         </ClerkProvider>

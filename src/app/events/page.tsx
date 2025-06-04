@@ -5,9 +5,17 @@ import { api } from "~/trpc/react"; // Ensure this path is correct for your tRPC
 import Link from 'next/link';
 import { z } from 'zod'; // Import Zod
 import { format } from 'date-fns';
-import { db } from "~/server/db";
-import { events } from "~/server/db/schema";
-import { eq, and, or, like, sql } from "drizzle-orm";
+import { Button } from "~/components/ui/button";
+import { Input } from "~/components/ui/input";
+import { Label } from "~/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "~/components/ui/select";
+import { Skeleton } from "~/components/ui/skeleton";
 
 // Define category type based on the backend schema
 const categorySchema = z.enum(["conference", "music_concert", "networking"]);
@@ -69,71 +77,100 @@ function SearchFilters({
             location: location || undefined,
             priceMin: priceMin || undefined,
             priceMax: priceMax || undefined,
-    });
-  };
+        });
+    };
 
-  return (
-        <form onSubmit={handleSubmit} style={{ marginBottom: '20px', padding: '15px', border: '1px solid #eee' }}>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', marginBottom: '10px' }}>
-                <input
-                    type="text"
-                    placeholder="Search by keyword..."
-                    value={query}
-                    onChange={(e) => setQuery(e.target.value)}
-                    style={{ padding: '8px', flex: '1 1 200px' }}
-                />
-                <select
-                    value={category ?? ''}
-                    onChange={(e) => setCategory(e.target.value as Category || undefined)}
-                    style={{ padding: '8px', flex: '1 1 200px' }}
-          >
-                    <option value="">All Categories</option>
-                    <option value="conference">Conference</option>
-                    <option value="music_concert">Music Concert</option>
-                    <option value="networking">Networking Session</option>
-                </select>
-            </div>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', marginBottom: '10px' }}>
-                <input
-                    type="date"
-                    value={dateFrom}
-                    onChange={(e) => setDateFrom(e.target.value)}
-                    style={{ padding: '8px', flex: '1 1 200px' }}
-                />
-                <input
-                    type="date"
-                    value={dateTo}
-                    onChange={(e) => setDateTo(e.target.value)}
-                    style={{ padding: '8px', flex: '1 1 200px' }}
-                />
-            </div>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
-                <input
-                    type="text"
-                    placeholder="Location..."
-                    value={location}
-                    onChange={(e) => setLocation(e.target.value)}
-                    style={{ padding: '8px', flex: '1 1 200px' }}
-                />
-                <input
-                    type="number"
-                    placeholder="Min Price"
-                    value={priceMin ?? ''}
-                    onChange={(e) => setPriceMin(e.target.value ? Number(e.target.value) : undefined)}
-                    style={{ padding: '8px', flex: '1 1 200px' }}
-                />
-                <input
-                    type="number"
-                    placeholder="Max Price"
-                    value={priceMax ?? ''}
-                    onChange={(e) => setPriceMax(e.target.value ? Number(e.target.value) : undefined)}
-                    style={{ padding: '8px', flex: '1 1 200px' }}
-                />
-                <button type="submit" style={{ padding: '8px 16px', backgroundColor: '#007bff', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>
-                    Search
-                </button>
-            </div>
-        </form>
+    return (
+        <div className="mb-8 rounded-lg bg-gray-800 p-6 shadow-md">
+            <h2 className="mb-4 text-xl font-semibold text-white">Search & Filter Events</h2>
+            <form onSubmit={handleSubmit}>
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                    <div>
+                        <Label htmlFor="search" className="text-white">Search Keywords</Label>
+                        <Input
+                            id="search"
+                            placeholder="Search by keyword..."
+                            value={query}
+                            onChange={(e) => setQuery(e.target.value)}
+                            className="bg-gray-700 text-white border-gray-600"
+                        />
+                    </div>
+                    <div>
+                        <Label htmlFor="category" className="text-white">Category</Label>
+                        <Select value={category ?? ''} onValueChange={(value) => setCategory(value as Category || undefined)}>
+                            <SelectTrigger className="bg-gray-700 text-white border-gray-600">
+                                <SelectValue placeholder="All Categories" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="">All Categories</SelectItem>
+                                <SelectItem value="conference">Conference</SelectItem>
+                                <SelectItem value="music_concert">Music Concert</SelectItem>
+                                <SelectItem value="networking">Networking Session</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    <div>
+                        <Label htmlFor="location" className="text-white">Location</Label>
+                        <Input
+                            id="location"
+                            placeholder="Location..."
+                            value={location}
+                            onChange={(e) => setLocation(e.target.value)}
+                            className="bg-gray-700 text-white border-gray-600"
+                        />
+                    </div>
+                    <div>
+                        <Label htmlFor="dateFrom" className="text-white">From Date</Label>
+                        <Input
+                            id="dateFrom"
+                            type="date"
+                            value={dateFrom}
+                            onChange={(e) => setDateFrom(e.target.value)}
+                            className="bg-gray-700 text-white border-gray-600"
+                        />
+                    </div>
+                    <div>
+                        <Label htmlFor="dateTo" className="text-white">To Date</Label>
+                        <Input
+                            id="dateTo"
+                            type="date"
+                            value={dateTo}
+                            onChange={(e) => setDateTo(e.target.value)}
+                            className="bg-gray-700 text-white border-gray-600"
+                        />
+                    </div>
+                    <div className="flex gap-2">
+                        <div className="flex-1">
+                            <Label htmlFor="priceMin" className="text-white">Min Price</Label>
+                            <Input
+                                id="priceMin"
+                                type="number"
+                                placeholder="Min Price"
+                                value={priceMin ?? ''}
+                                onChange={(e) => setPriceMin(e.target.value ? Number(e.target.value) : undefined)}
+                                className="bg-gray-700 text-white border-gray-600"
+                            />
+                        </div>
+                        <div className="flex-1">
+                            <Label htmlFor="priceMax" className="text-white">Max Price</Label>
+                            <Input
+                                id="priceMax"
+                                type="number"
+                                placeholder="Max Price"
+                                value={priceMax ?? ''}
+                                onChange={(e) => setPriceMax(e.target.value ? Number(e.target.value) : undefined)}
+                                className="bg-gray-700 text-white border-gray-600"
+                            />
+                        </div>
+                    </div>
+                </div>
+                <div className="mt-4">
+                    <Button type="submit" className="bg-blue-600 hover:bg-blue-700">
+                        Search Events
+                    </Button>
+                </div>
+            </form>
+        </div>
     );
 }
 
@@ -148,123 +185,147 @@ function PaginationControls({
     onPageChange: (page: number) => void;
 }) {
     return (
-        <div style={{ display: 'flex', justifyContent: 'center', gap: '10px', marginTop: '20px' }}>
-            <button
+        <div className="flex justify-center gap-2 mt-8">
+            <Button
+                variant="outline"
                 onClick={() => onPageChange(currentPage - 1)}
                 disabled={currentPage === 1}
-                style={{ padding: '8px 16px', backgroundColor: '#f8f9fa', border: '1px solid #ddd', borderRadius: '4px', cursor: 'pointer' }}
             >
                 Previous
-            </button>
-            <span style={{ padding: '8px 16px' }}>
+            </Button>
+            <span className="flex items-center px-4 text-white">
                 Page {currentPage} of {totalPages}
             </span>
-            <button
+            <Button
+                variant="outline"
                 onClick={() => onPageChange(currentPage + 1)}
                 disabled={currentPage === totalPages}
-                style={{ padding: '8px 16px', backgroundColor: '#f8f9fa', border: '1px solid #ddd', borderRadius: '4px', cursor: 'pointer' }}
             >
                 Next
-            </button>
-    </div>
-  );
-}
-
-function EventCard({ event }: { event: Event }) {
-  return (
-    <Link href={`/events/${event.id}`} className="block">
-      <div className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-300">
-        <div className="p-6">
-          <div className="flex justify-between items-start mb-4">
-            <h3 className="text-xl font-semibold text-gray-900">{event.name}</h3>
-            <span className="px-3 py-1 text-sm font-medium rounded-full bg-blue-100 text-blue-800">
-              {event.type.replace("_", " ")}
-            </span>
-          </div>
-          <p className="text-gray-600 mb-4 line-clamp-2">{event.description}</p>
-          <div className="flex justify-between items-center">
-            <div>
-              <p className="text-sm text-gray-500">
-                {format(event.startDate, "MMM d, yyyy")}
-              </p>
-              <p className="text-sm text-gray-500">{event.location}</p>
-            </div>
-            <div className="text-right">
-              <p className="text-lg font-semibold text-gray-900">
-                From ${event.generalTicketPrice}
-              </p>
-              <p className="text-sm text-gray-500">per ticket</p>
-            </div>
-          </div>
+            </Button>
         </div>
-      </div>
-    </Link>
-  );
+    );
 }
 
+// Event card component
+function EventCard({ event }: { event: any }) {
+    const formattedDate = format(new Date(event.startDate), 'PPP p');
+    const formattedPrice = `$${Number(event.generalTicketPrice).toFixed(2)}`;
+
+    return (
+        <div className="rounded-lg bg-gray-800 p-6 shadow-md border border-gray-700">
+            <div className="mb-3">
+                <span className="rounded-full bg-blue-100 px-3 py-1 text-sm font-medium text-blue-800 dark:bg-blue-900 dark:text-blue-200 capitalize">
+                    {event.type.replace('_', ' ')}
+                </span>
+            </div>
+            <h3 className="mb-2 text-xl font-semibold text-white">{event.name}</h3>
+            <p className="mb-4 text-gray-300 line-clamp-3">{event.description}</p>
+            <div className="mb-4 space-y-2 text-sm text-gray-400">
+                <p>📅 {formattedDate}</p>
+                <p>📍 {event.location}</p>
+                <p>💰 From {formattedPrice}</p>
+                <p>👥 Max {event.maxAttendees} attendees</p>
+            </div>
+            <Link href={`/events/${event.id}`}>
+                <Button className="w-full bg-blue-600 hover:bg-blue-700">
+                    View Details
+                </Button>
+            </Link>
+        </div>
+    );
+}
+
+// Loading component
+function LoadingGrid() {
+    return (
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+            {Array.from({ length: 6 }).map((_, index) => (
+                <div key={index} className="rounded-lg bg-gray-800 p-6 shadow-md border border-gray-700">
+                    <Skeleton className="h-6 w-20 mb-3 bg-gray-700" />
+                    <Skeleton className="h-8 w-3/4 mb-2 bg-gray-700" />
+                    <Skeleton className="h-4 w-full mb-2 bg-gray-700" />
+                    <Skeleton className="h-4 w-2/3 mb-4 bg-gray-700" />
+                    <div className="space-y-2 mb-4">
+                        <Skeleton className="h-4 w-1/2 bg-gray-700" />
+                        <Skeleton className="h-4 w-1/3 bg-gray-700" />
+                        <Skeleton className="h-4 w-1/4 bg-gray-700" />
+                    </div>
+                    <Skeleton className="h-10 w-full bg-gray-700" />
+                </div>
+            ))}
+        </div>
+    );
+}
+
+// Main component
 export default function EventsPage() {
     const [filters, setFilters] = useState<EventFilters>({});
-    const [pagination, setPagination] = useState({ page: 1, limit: 9 });
+    const [currentPage, setCurrentPage] = useState(1);
 
-    const { data, isLoading, error } = api.event.searchEvents.useQuery(
-        {
-            ...filters,
-            page: pagination.page,
-            limit: pagination.limit,
-            sortBy: 'date',
-            sortOrder: 'asc',
-        }
-    );
+    // Use the searchEvents API from the SCRUM-276 branch
+    const { data: searchResults, isLoading, error } = api.event.searchEvents.useQuery({
+        ...filters,
+        page: currentPage,
+        limit: 9,
+    });
 
     const handleSearch = (newFilters: EventFilters) => {
         setFilters(newFilters);
-        setPagination(prev => ({ ...prev, page: 1 }));
+        setCurrentPage(1); // Reset to first page when searching
     };
 
-    const handlePageChange = (newPage: number) => {
-        setPagination(prev => ({ ...prev, page: newPage }));
+    const handlePageChange = (page: number) => {
+        setCurrentPage(page);
     };
 
-  return (
-        <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '20px' }}>
-            <h1 style={{ marginBottom: '20px' }}>Discover Events</h1>
+    if (error) {
+        return (
+            <div className="container mx-auto px-4 py-8">
+                <div className="rounded-lg bg-red-100 p-6 text-center">
+                    <h2 className="text-xl font-semibold text-red-800">Error Loading Events</h2>
+                    <p className="mt-2 text-red-600">{error.message}</p>
+                </div>
+            </div>
+        );
+    }
 
-            <SearchFilters onSearch={handleSearch} />
+    return (
+        <div className="min-h-screen bg-gray-900">
+            <div className="container mx-auto px-4 py-8">
+                <h1 className="mb-8 text-4xl font-bold text-white">Discover Events</h1>
+                
+                <SearchFilters onSearch={handleSearch} />
 
-            {isLoading && <p>Loading events...</p>}
-            {error && <p>Error loading events: {error.message}</p>}
-
-            {data && data.events && (
-                <>
-                    <div style={{ 
-                        display: 'grid', 
-                        gridTemplateColumns: 'repeat(3, 1fr)', 
-                        gap: '20px',
-                        marginBottom: '20px'
-                    }}>
-                        {data.events.length > 0 ? (
-                            data.events.map((event) => (
-                                <EventCard key={event.id} event={{
-                                    ...event,
-                                    startDate: new Date(event.startDate),
-                                    endDate: new Date(event.endDate),
-                                    date: new Date(event.startDate),
-                                }} />
-                            ))
-                        ) : (
-                            <p>No events found matching your criteria.</p>
+                {isLoading ? (
+                    <LoadingGrid />
+                ) : searchResults && searchResults.events.length > 0 ? (
+                    <>
+                        <div className="mb-6 text-gray-300">
+                            Found {searchResults.totalEvents} events
+                        </div>
+                        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+                            {searchResults.events.map((event) => (
+                                <EventCard key={event.id} event={event} />
+                            ))}
+                        </div>
+                        {searchResults.totalPages > 1 && (
+                            <PaginationControls
+                                currentPage={currentPage}
+                                totalPages={searchResults.totalPages}
+                                onPageChange={handlePageChange}
+                            />
                         )}
+                    </>
+                ) : (
+                    <div className="rounded-lg bg-gray-800 p-8 text-center">
+                        <h2 className="text-xl font-semibold text-white">No events found</h2>
+                        <p className="mt-2 text-gray-400">
+                            Try adjusting your search criteria or check back later for new events.
+                        </p>
                     </div>
-
-                    {data.totalPages > 1 && (
-                        <PaginationControls
-                            currentPage={data.currentPage}
-                            totalPages={data.totalPages}
-                            onPageChange={handlePageChange}
-                        />
-                    )}
-                </>
-            )}
+                )}
+            </div>
         </div>
-  );
+    );
 }

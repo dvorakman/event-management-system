@@ -6,11 +6,15 @@
  * TL;DR - This is where all the tRPC server stuff is created and plugged in. The pieces you will
  * need to use are documented accordingly near the end.
  */
-import { initTRPC } from "@trpc/server";
+import { initTRPC, TRPCError } from "@trpc/server";
 import superjson from "superjson";
 import { ZodError } from "zod";
+import { auth, currentUser } from "@clerk/nextjs/server";
+import { eq } from "drizzle-orm";
 
 import { db } from "~/server/db";
+import { users } from "~/server/db/schema";
+import { env } from "~/env";
 
 /**
  * 1. CONTEXT
@@ -25,9 +29,83 @@ import { db } from "~/server/db";
  * @see https://trpc.io/docs/server/context
  */
 export const createTRPCContext = async (opts: { headers: Headers }) => {
+  // Get auth info from headers directly
+  const authHeader = opts.headers.get("authorization");
+  console.log("[TRPC Context] Auth header:", {
+    hasAuthHeader: !!authHeader,
+    authHeader: authHeader ? `${authHeader.substring(0, 15)}...` : null,
+  });
+
+  // Get auth session using Clerk's auth() helper
+  const session = await auth();
+  const userId = session.userId;
+
+  console.log("[TRPC Context] Auth state:", {
+    userId,
+    hasHeaders: !!opts.headers,
+    sessionId: session.sessionId,
+  });
+
+  // Extract user info from JWT claims
+  const { sessionClaims } = session;
+  let role = null;
+  let onboardingComplete = false;
+  
+  if (sessionClaims) {
+    // Extract role from JWT claims - first check direct role claim, then metadata
+    role = sessionClaims.role as string | undefined;
+    
+    // If role is not found directly, check metadata
+    if (!role && sessionClaims.metadata) {
+      const metadata = sessionClaims.metadata as Record<string, unknown>;
+      role = metadata.role as string | undefined;
+    }
+    
+    // Extract onboardingComplete flag
+    if (sessionClaims.metadata) {
+      const metadata = sessionClaims.metadata as Record<string, unknown>;
+      onboardingComplete = metadata.onboardingComplete as boolean || false;
+    }
+  }
+
+  // If there's no userId, return minimal context
+  if (!userId) {
+    console.log("[TRPC Context] No userId found");
+    return {
+      db,
+      headers: opts.headers,
+      userRole: null,
+      onboardingComplete: false,
+    };
+  }
+
+  // Check if user exists in our database (for foreign key relationships only)
+  try {
+    const dbUser = await db.query.users.findFirst({
+      where: eq(users.id, userId),
+    });
+    
+    // If user doesn't exist in our database yet, create a minimal entry for foreign key references
+    if (!dbUser) {
+      console.log("[TRPC Context] Creating minimal user entry for foreign key references");
+      await db.insert(users).values({
+        id: userId,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+    }
+  } catch (error) {
+    console.error("[TRPC Context] Database error:", error);
+    // Non-fatal error, continue with context
+  }
+
+  // Return context with user info from Clerk
   return {
     db,
-    ...opts,
+    userId,
+    headers: opts.headers,
+    userRole: role,
+    onboardingComplete,
   };
 };
 
@@ -82,7 +160,9 @@ export const createTRPCRouter = t.router;
 const timingMiddleware = t.middleware(async ({ next, path }) => {
   const start = Date.now();
 
-  if (t._config.isDev) {
+  const isDevelopment =
+    !process.env.VERCEL_ENV || process.env.VERCEL_ENV !== "production";
+  if (isDevelopment) {
     // artificial delay in dev
     const waitMs = Math.floor(Math.random() * 400) + 100;
     await new Promise((resolve) => setTimeout(resolve, waitMs));
@@ -104,3 +184,71 @@ const timingMiddleware = t.middleware(async ({ next, path }) => {
  * are logged in.
  */
 export const publicProcedure = t.procedure.use(timingMiddleware);
+
+/**
+ * Protected (authenticated) procedure
+ *
+ * This is the base piece you use to build new queries and mutations on your tRPC API that require
+ * authentication. It guarantees that a user must be logged in to access the route.
+ */
+export const protectedProcedure = t.procedure
+  .use(timingMiddleware)
+  .use(async ({ ctx, next }) => {
+    console.log("[TRPC Protected] Context:", {
+      userId: ctx.userId,
+      userRole: ctx.userRole,
+      headers: Object.fromEntries(ctx.headers.entries()),
+    });
+
+    if (!ctx.userId) {
+      console.log("[TRPC Protected] No userId found");
+      throw new TRPCError({
+        code: "UNAUTHORIZED",
+        message: "You must be logged in to access this resource",
+      });
+    }
+    
+    return next({
+      ctx: {
+        ...ctx,
+        // Pass userId and role info to the procedure
+        userId: ctx.userId,
+        userRole: ctx.userRole,
+        onboardingComplete: ctx.onboardingComplete,
+      },
+    });
+  });
+
+/**
+ * Organizer procedure
+ * 
+ * This procedure ensures the user has the organizer role
+ */
+export const organizerProcedure = protectedProcedure
+  .use(async ({ ctx, next }) => {
+    if (ctx.userRole !== "organizer" && ctx.userRole !== "admin") {
+      throw new TRPCError({
+        code: "FORBIDDEN",
+        message: "You must be an organizer to access this resource",
+      });
+    }
+    
+    return next({ ctx });
+  });
+
+/**
+ * Admin procedure
+ * 
+ * This procedure ensures the user has the admin role
+ */
+export const adminProcedure = protectedProcedure
+  .use(async ({ ctx, next }) => {
+    if (ctx.userRole !== "admin") {
+      throw new TRPCError({
+        code: "FORBIDDEN",
+        message: "You must be an admin to access this resource",
+      });
+    }
+    
+    return next({ ctx });
+  });

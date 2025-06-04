@@ -11,6 +11,8 @@ import {
   text,
   decimal,
   boolean,
+  pgEnum,
+  uuid,
 } from "drizzle-orm/pg-core";
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 
@@ -24,20 +26,24 @@ export const createTable = pgTableCreator(
   (name) => `event-management-system_${name}`,
 );
 
-// Users table (although we're using Clerk for auth, we still need to store some user data)
+export const userRole = pgEnum("user_role", ["user", "organizer", "admin"]);
+
+// Users table - stores Clerk ID and minimal profile data for relationship tracking
+// Auth and role management primarily handled by Clerk
 export const users = createTable(
   "user",
   {
-    id: text("id").primaryKey(), // Using Clerk's user ID
+    id: text("id").primaryKey(), // Clerk's user ID as the primary key
     email: text("email").notNull(),
     name: text("name").notNull(),
-    role: text("role", { enum: ["user", "organizer", "admin"] })
-      .default("user")
-      .notNull(),
+    imageUrl: text("image_url"),
+    role: userRole("role").default("user").notNull(), // Local mirror of role for easier querying
     createdAt: timestamp("created_at", { withTimezone: true })
       .default(sql`CURRENT_TIMESTAMP`)
       .notNull(),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).$onUpdate(() => new Date()),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).$onUpdate(
+      () => new Date(),
+    ),
   },
   (table) => ({
     emailIdx: index("email_idx").on(table.email),
@@ -48,7 +54,7 @@ export const users = createTable(
 export const events = createTable(
   "event",
   {
-    id: integer("id").primaryKey().generatedByDefaultAsIdentity(),
+    id: uuid("id").primaryKey().defaultRandom(),
     name: text("name").notNull(),
     description: text("description").notNull(),
     startDate: timestamp("start_date", { withTimezone: true }).notNull(),
@@ -57,8 +63,14 @@ export const events = createTable(
     type: text("type", {
       enum: ["conference", "music_concert", "networking"],
     }).notNull(),
-    generalTicketPrice: decimal("general_ticket_price", { precision: 10, scale: 2 }).notNull(),
-    vipTicketPrice: decimal("vip_ticket_price", { precision: 10, scale: 2 }).notNull(),
+    generalTicketPrice: decimal("general_ticket_price", {
+      precision: 10,
+      scale: 2,
+    }).notNull(),
+    vipTicketPrice: decimal("vip_ticket_price", {
+      precision: 10,
+      scale: 2,
+    }).notNull(),
     vipPerks: text("vip_perks").notNull(),
     maxAttendees: integer("max_attendees").notNull(),
     organizerId: text("organizer_id")
@@ -72,7 +84,9 @@ export const events = createTable(
     createdAt: timestamp("created_at", { withTimezone: true })
       .default(sql`CURRENT_TIMESTAMP`)
       .notNull(),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).$onUpdate(() => new Date()),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).$onUpdate(
+      () => new Date(),
+    ),
   },
   (table) => ({
     organizerIdx: index("organizer_idx").on(table.organizerId),
@@ -86,11 +100,11 @@ export const events = createTable(
 export const registrations = createTable(
   "registration",
   {
-    id: integer("id").primaryKey().generatedByDefaultAsIdentity(),
+    id: uuid("id").primaryKey().defaultRandom(),
     userId: text("user_id")
       .notNull()
       .references(() => users.id),
-    eventId: integer("event_id")
+    eventId: uuid("event_id")
       .notNull()
       .references(() => events.id),
     ticketType: text("ticket_type", { enum: ["general", "vip"] }).notNull(),
@@ -108,7 +122,9 @@ export const registrations = createTable(
     createdAt: timestamp("created_at", { withTimezone: true })
       .default(sql`CURRENT_TIMESTAMP`)
       .notNull(),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).$onUpdate(() => new Date()),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).$onUpdate(
+      () => new Date(),
+    ),
   },
   (table) => ({
     userEventIdx: index("user_event_idx").on(table.userId, table.eventId),
@@ -121,8 +137,8 @@ export const registrations = createTable(
 export const tickets = createTable(
   "ticket",
   {
-    id: integer("id").primaryKey().generatedByDefaultAsIdentity(),
-    registrationId: integer("registration_id")
+    id: uuid("id").primaryKey().defaultRandom(),
+    registrationId: uuid("registration_id")
       .notNull()
       .references(() => registrations.id),
     ticketNumber: text("ticket_number").notNull(),
@@ -142,7 +158,7 @@ export const tickets = createTable(
 export const notifications = createTable(
   "notification",
   {
-    id: integer("id").primaryKey().generatedByDefaultAsIdentity(),
+    id: uuid("id").primaryKey().defaultRandom(),
     userId: text("user_id")
       .notNull()
       .references(() => users.id),
@@ -152,7 +168,7 @@ export const notifications = createTable(
       enum: ["registration", "reminder", "cancellation", "update"],
     }).notNull(),
     isRead: boolean("is_read").default(false).notNull(),
-    eventId: integer("event_id").references(() => events.id),
+    eventId: uuid("event_id").references(() => events.id),
     createdAt: timestamp("created_at", { withTimezone: true })
       .default(sql`CURRENT_TIMESTAMP`)
       .notNull(),
@@ -160,22 +176,6 @@ export const notifications = createTable(
   (table) => ({
     userIdx: index("notification_user_idx").on(table.userId),
     eventNotificationIdx: index("event_notification_idx").on(table.eventId),
-  }),
-);
-
-// Posts table (keep this for compatibility with existing code)
-export const posts = createTable(
-  "post",
-  {
-    id: integer("id").primaryKey().generatedByDefaultAsIdentity(),
-    name: varchar("name", { length: 256 }),
-    createdAt: timestamp("createdAt", { withTimezone: true })
-      .default(sql`CURRENT_TIMESTAMP`)
-      .notNull(),
-    updatedAt: timestamp("updatedAt", { withTimezone: true }).$onUpdate(() => new Date()),
-  },
-  (example) => ({
-    nameIndex: index("name_idx").on(example.name),
   }),
 );
 
@@ -199,10 +199,6 @@ export const selectTicketSchema = createSelectSchema(tickets);
 export const insertNotificationSchema = createInsertSchema(notifications);
 export const selectNotificationSchema = createSelectSchema(notifications);
 
-// Schema for inserting a post (keep this for compatibility)
-export const insertPostSchema = createInsertSchema(posts);
-export const selectPostSchema = createSelectSchema(posts);
-
 // Export the query builder
 export const queries = {
   users,
@@ -210,5 +206,9 @@ export const queries = {
   registrations,
   tickets,
   notifications,
-  posts,
 } as const;
+
+// Schema type exports
+export type User = typeof users.$inferSelect;
+export type NewUser = typeof users.$inferInsert;
+export type UserRole = "user" | "organizer" | "admin";

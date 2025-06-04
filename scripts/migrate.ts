@@ -14,9 +14,9 @@ async function main() {
   const dbUrl = env.NEON_DATABASE_URL ?? env.DATABASE_URL;
 
   if (!dbUrl) {
-    throw new Error(
-      "No database URL provided. Set either NEON_DATABASE_URL (for production) or DATABASE_URL (for local development)",
-    );
+    console.log("⚠️ No database URL provided. Skipping migrations.");
+    // Exit successfully instead of throwing an error
+    return;
   }
 
   console.log("🔄 Running migrations...");
