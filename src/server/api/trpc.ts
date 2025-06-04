@@ -88,8 +88,16 @@ export const createTRPCContext = async (opts: { headers: Headers }) => {
     // If user doesn't exist in our database yet, create a minimal entry for foreign key references
     if (!dbUser) {
       console.log("[TRPC Context] Creating minimal user entry for foreign key references");
+      
+      // Get user info from Clerk to satisfy not-null constraints
+      const clerkUser = await currentUser();
+      
       await db.insert(users).values({
         id: userId,
+        email: clerkUser?.emailAddresses[0]?.emailAddress || `${userId}@unknown.com`,
+        name: clerkUser?.fullName || clerkUser?.firstName || clerkUser?.username || "Unknown User",
+        imageUrl: clerkUser?.imageUrl,
+        role: role as any || "user",
         createdAt: new Date(),
         updatedAt: new Date(),
       });

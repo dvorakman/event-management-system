@@ -24,7 +24,7 @@ export const eventManagementSystemUser = pgTable("event-management-system_user",
 ]);
 
 export const eventManagementSystemEvent = pgTable("event-management-system_event", {
-	id: integer().primaryKey().generatedByDefaultAsIdentity({ name: ""event-management-system_event_id_seq"", startWith: 1, increment: 1, minValue: 1, maxValue: 2147483647 }),
+	id: integer().primaryKey().generatedByDefaultAsIdentity({ name: "event-management-system_event_id_seq", startWith: 1, increment: 1, minValue: 1, maxValue: 2147483647 }),
 	name: text().notNull(),
 	description: text().notNull(),
 	startDate: timestamp("start_date", { withTimezone: true, mode: 'string' }).notNull(),
@@ -52,7 +52,7 @@ export const eventManagementSystemEvent = pgTable("event-management-system_event
 ]);
 
 export const eventManagementSystemNotification = pgTable("event-management-system_notification", {
-	id: integer().primaryKey().generatedByDefaultAsIdentity({ name: ""event-management-system_notification_id_seq"", startWith: 1, increment: 1, minValue: 1, maxValue: 2147483647 }),
+	id: integer().primaryKey().generatedByDefaultAsIdentity({ name: "event-management-system_notification_id_seq", startWith: 1, increment: 1, minValue: 1, maxValue: 2147483647 }),
 	userId: text("user_id").notNull(),
 	title: text().notNull(),
 	message: text().notNull(),
@@ -76,7 +76,7 @@ export const eventManagementSystemNotification = pgTable("event-management-syste
 ]);
 
 export const eventManagementSystemRegistration = pgTable("event-management-system_registration", {
-	id: integer().primaryKey().generatedByDefaultAsIdentity({ name: ""event-management-system_registration_id_seq"", startWith: 1, increment: 1, minValue: 1, maxValue: 2147483647 }),
+	id: integer().primaryKey().generatedByDefaultAsIdentity({ name: "event-management-system_registration_id_seq", startWith: 1, increment: 1, minValue: 1, maxValue: 2147483647 }),
 	userId: text("user_id").notNull(),
 	eventId: integer("event_id").notNull(),
 	ticketType: text("ticket_type").notNull(),
@@ -102,7 +102,7 @@ export const eventManagementSystemRegistration = pgTable("event-management-syste
 ]);
 
 export const eventManagementSystemTicket = pgTable("event-management-system_ticket", {
-	id: integer().primaryKey().generatedByDefaultAsIdentity({ name: ""event-management-system_ticket_id_seq"", startWith: 1, increment: 1, minValue: 1, maxValue: 2147483647 }),
+	id: integer().primaryKey().generatedByDefaultAsIdentity({ name: "event-management-system_ticket_id_seq", startWith: 1, increment: 1, minValue: 1, maxValue: 2147483647 }),
 	registrationId: integer("registration_id").notNull(),
 	ticketNumber: text("ticket_number").notNull(),
 	qrCode: text("qr_code").notNull(),
