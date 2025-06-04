@@ -6,8 +6,17 @@ import { useUser } from "@clerk/nextjs";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
 import { Button } from "~/components/ui/button";
+import { Badge } from "~/components/ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "~/components/ui/dialog";
 import Link from "next/link";
-import { Loader2 } from "lucide-react";
+import { Loader2, Eye, Calendar, MapPin, CreditCard, User, Phone, Utensils, Accessibility } from "lucide-react";
 import { api } from "~/trpc/react";
 
 // Define type for ticket data fetched from backend
@@ -21,6 +30,179 @@ interface UserTicket {
   purchaseDate: Date;
   ticketNumber: string | null; // Ticket might not exist yet
   qrCodeUrl: string | null; // QR code might not exist yet
+  totalAmount: string;
+  status: string;
+  // Personal information fields
+  dietaryRequirements: string | null;
+  specialNeeds: string | null;
+  emergencyContact: string | null;
+}
+
+// Component for detailed ticket view modal
+function TicketDetailsModal({ ticket }: { ticket: UserTicket }) {
+  return (
+    <Dialog>
+      <DialogTrigger asChild>
+        <Button variant="outline" size="sm" className="w-full">
+          <Eye className="mr-2 h-4 w-4" />
+          View Ticket Details
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="max-w-2xl">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <span>Ticket Details - {ticket.eventName}</span>
+            <Badge variant={ticket.status === "confirmed" ? "default" : "secondary"}>
+              {ticket.status}
+            </Badge>
+          </DialogTitle>
+          <DialogDescription>
+            Your complete ticket and registration information
+          </DialogDescription>
+        </DialogHeader>
+        
+        <div className="space-y-6">
+          {/* Event Information */}
+          <div className="space-y-3">
+            <h3 className="flex items-center gap-2 font-semibold">
+              <Calendar className="h-4 w-4" />
+              Event Details
+            </h3>
+            <div className="grid gap-2 pl-6">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Date:</span>
+                <span>{ticket.eventStartDate ? new Date(ticket.eventStartDate).toLocaleDateString("en-AU", {
+                  weekday: "long",
+                  year: "numeric", 
+                  month: "long",
+                  day: "numeric"
+                }) : "N/A"}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Location:</span>
+                <span>{ticket.eventLocation}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Ticket Type:</span>
+                <Badge variant="outline" className="capitalize">
+                  {ticket.ticketType}
+                </Badge>
+              </div>
+            </div>
+          </div>
+
+          {/* Payment Information */}
+          <div className="space-y-3">
+            <h3 className="flex items-center gap-2 font-semibold">
+              <CreditCard className="h-4 w-4" />
+              Payment Details
+            </h3>
+            <div className="grid gap-2 pl-6">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Amount Paid:</span>
+                <span className="font-medium">${Number(ticket.totalAmount).toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Purchase Date:</span>
+                <span>{new Date(ticket.purchaseDate).toLocaleDateString("en-AU")}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Ticket Number:</span>
+                <span className="font-mono">{ticket.ticketNumber || "Pending"}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Personal Information */}
+          <div className="space-y-3">
+            <h3 className="flex items-center gap-2 font-semibold">
+              <User className="h-4 w-4" />
+              Personal Information
+            </h3>
+            <div className="space-y-3 pl-6">
+              {ticket.emergencyContact && (
+                <div>
+                  <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                    <Phone className="h-3 w-3" />
+                    Emergency Contact
+                  </div>
+                  <div className="text-sm mt-1">
+                    {(() => {
+                      try {
+                        const contact = JSON.parse(ticket.emergencyContact);
+                        return (
+                          <div className="space-y-1">
+                            {contact.name && <p><span className="font-medium">Name:</span> {contact.name}</p>}
+                            {contact.phone && <p><span className="font-medium">Phone:</span> {contact.phone}</p>}
+                          </div>
+                        );
+                      } catch {
+                        // If it's not valid JSON, display as plain text
+                        return <p>{ticket.emergencyContact}</p>;
+                      }
+                    })()}
+                  </div>
+                </div>
+              )}
+              
+              {ticket.dietaryRequirements && (
+                <div>
+                  <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                    <Utensils className="h-3 w-3" />
+                    Dietary Requirements
+                  </div>
+                  <p className="text-sm mt-1">{ticket.dietaryRequirements}</p>
+                </div>
+              )}
+              
+              {ticket.specialNeeds && (
+                <div>
+                  <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                    <Accessibility className="h-3 w-3" />
+                    Special Needs
+                  </div>
+                  <p className="text-sm mt-1">{ticket.specialNeeds}</p>
+                </div>
+              )}
+
+              {!ticket.emergencyContact && !ticket.dietaryRequirements && !ticket.specialNeeds && (
+                <p className="text-sm text-muted-foreground italic">
+                  No additional personal information provided
+                </p>
+              )}
+            </div>
+          </div>
+
+          {/* QR Code */}
+          {ticket.qrCodeUrl && (
+            <div className="space-y-3">
+              <h3 className="font-semibold">Event Entry</h3>
+              <div className="flex flex-col items-center rounded-lg border p-4">
+                <img
+                  src={ticket.qrCodeUrl}
+                  alt="Ticket QR Code"
+                  className="h-32 w-32"
+                />
+                <p className="mt-2 text-xs text-muted-foreground text-center">
+                  Present this QR code at the event entrance
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Event Link */}
+          <div className="pt-4 border-t">
+            <Link href={`/events/${ticket.eventId}`}>
+              <Button variant="outline" className="w-full">
+                <MapPin className="mr-2 h-4 w-4" />
+                View Event Page
+              </Button>
+            </Link>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
 }
 
 // Loading component
@@ -296,10 +478,10 @@ function DashboardContent() {
                               <img
                                 src={ticket.qrCodeUrl}
                                 alt="Ticket QR Code"
-                                className="h-32 w-32"
+                                className="h-24 w-24"
                               />
-                              <p className="mt-2 text-xs text-muted-foreground">
-                                Present this QR code at the event
+                              <p className="mt-1 text-xs text-muted-foreground">
+                                QR Code Available
                               </p>
                             </div>
                           ) : (
@@ -309,13 +491,8 @@ function DashboardContent() {
                           )}
                         </div>
 
-                        <div className="mt-4 flex justify-center">
-                          <Link
-                            href={`/events/${ticket.eventId}`}
-                            className="text-sm text-blue-600 hover:underline"
-                          >
-                            View Event Details
-                          </Link>
+                        <div className="mt-4">
+                          <TicketDetailsModal ticket={ticket} />
                         </div>
                       </CardContent>
                     </Card>
