@@ -52,11 +52,11 @@ export function FeaturedEvents() {
   }
 
   return (
-    <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-3">
+    <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-3 auto-rows-fr">
       {events.map((event) => (
-        <BackgroundGradient key={event.id} containerClassName="rounded-lg">
-          <div className="flex flex-col overflow-hidden rounded-3xl shadow-lg">
-            <div className="h-48 bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center">
+        <BackgroundGradient key={event.id} containerClassName="rounded-lg h-full">
+          <div className="flex flex-col overflow-hidden rounded-3xl shadow-lg h-full">
+            <div className="h-48 bg-gradient-to-br from-blue-400 to-purple-500 flex items-center justify-center flex-shrink-0">
               <div className="text-center text-white">
                 <div className="text-lg font-semibold capitalize">
                   {event.type.replace('_', ' ')}
@@ -67,7 +67,7 @@ export function FeaturedEvents() {
               </div>
             </div>
             <div className="flex flex-1 flex-col justify-between bg-white p-6 dark:bg-gray-800">
-              <div>
+              <div className="flex-1">
                 <div className="flex items-center justify-between mb-2">
                   <p className="text-sm font-medium text-blue-600 capitalize">
                     {event.type.replace('_', ' ')}
@@ -83,8 +83,8 @@ export function FeaturedEvents() {
                     </span>
                   )}
                 </div>
-                <h3 className="text-xl font-semibold text-gray-900 dark:text-white line-clamp-2">
-                  {event.name}
+                <h3 className="text-xl font-semibold text-gray-900 dark:text-white line-clamp-2 h-14 flex items-start">
+                  <span>{event.name}</span>
                 </h3>
                 <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">
                   📍 {event.location}
@@ -96,8 +96,8 @@ export function FeaturedEvents() {
                     month: 'short'
                   })}
                 </p>
-                <p className="mt-3 text-base text-gray-500 dark:text-gray-300 line-clamp-2">
-                  {event.description}
+                <p className="mt-3 text-base text-gray-500 dark:text-gray-300 line-clamp-2 h-12 flex items-start">
+                  <span>{event.description}</span>
                 </p>
                 <div className="mt-3 flex items-center justify-between">
                   <span className="text-lg font-bold text-green-600">
@@ -108,7 +108,7 @@ export function FeaturedEvents() {
                   </span>
                 </div>
               </div>
-              <div className="mt-6">
+              <div className="mt-6 flex-shrink-0">
                 <Link href={`/events/${event.id}`}>
                   <Button className="w-full">
                     {event.isSoldOut ? "View Details" : "Register Now"}
