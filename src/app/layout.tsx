@@ -27,8 +27,11 @@ export default function RootLayout({
 }) {
   return (
     <ClerkProvider>
-      <html lang="en" className={inter.variable}>
-        <body className="font-sans antialiased">
+      <html lang="en" suppressHydrationWarning>
+        <head>
+          <meta name="color-scheme" content="light dark" />
+        </head>
+        <body className={`font-sans antialiased ${inter.variable}`}>
           <ThemeProvider
             attribute="class"
             defaultTheme="system"

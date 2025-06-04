@@ -7,10 +7,35 @@ import { api } from "~/trpc/react";
 import Link from "next/link";
 import { Button } from "~/components/ui/button";
 import { Loader2 } from "lucide-react";
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  Legend,
+} from "recharts";
+import type { RouterOutputs } from "~/trpc/shared";
+
+type Stats = RouterOutputs["event"]["getOrganizerStats"];
+type Registration = Stats["recentRegistrations"][number];
+type Event = RouterOutputs["event"]["getOrganizerEvents"][number];
+type Attendee = RouterOutputs["event"]["getOrganizerAttendees"][number];
 
 export default function OrganizerDashboardPage() {
   const [activeTab, setActiveTab] = useState("overview");
-  const { data: stats, isLoading } = api.event.getOrganizerStats.useQuery();
+  const { data: stats, isLoading } = api.event.getOrganizerStats.useQuery({});
+
+  // Prepare chart data
+  const monthlyRevenue = stats?.monthlyRevenue ?? [];
+  const ticketDistribution = [
+    { type: "General", count: stats?.ticketDistribution?.general ?? 0 },
+    { type: "VIP", count: stats?.ticketDistribution?.vip ?? 0 },
+  ];
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -34,63 +59,141 @@ export default function OrganizerDashboardPage() {
         </TabsList>
 
         <TabsContent value="overview" className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-3">
-            {isLoading ? (
-              <>
-                {[1, 2, 3].map((i) => (
-                  <Card
-                    key={i}
-                    className="flex items-center justify-center p-6"
+          <div className="grid gap-4 md:grid-cols-4">
+            {/* Stats Cards */}
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium">
+                  Total Events
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">
+                  {stats?.totalEvents || 0}
+                </div>
+                <div className="mt-1 text-xs text-muted-foreground">
+                  {stats?.publishedEvents ?? 0} published events
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium">
+                  Total Registrations
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">
+                  {stats?.totalRegistrations || 0}
+                </div>
+                <div className="mt-1 text-xs text-muted-foreground">
+                  Across all your events
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium">
+                  Total Revenue
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">
+                  ${Number(stats?.totalRevenue ?? 0).toFixed(2)}
+                </div>
+                <div className="mt-1 text-xs text-muted-foreground">
+                  From confirmed registrations
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium">
+                  Ticket Distribution
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={40}>
+                  <BarChart
+                    data={ticketDistribution}
+                    layout="vertical"
+                    margin={{ left: 0, right: 0, top: 0, bottom: 0 }}
                   >
-                    <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-                  </Card>
-                ))}
-              </>
-            ) : (
-              <>
-                <Card>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm font-medium">
-                      Total Events
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold">
-                      {stats?.totalEvents || 0}
+                    <XAxis type="number" hide />
+                    <YAxis type="category" dataKey="type" hide />
+                    <Bar dataKey="count" fill="#3b82f6" radius={[4, 4, 4, 4]} />
+                  </BarChart>
+                </ResponsiveContainer>
+                <div className="mt-2 flex justify-between text-xs">
+                  <span>General</span>
+                  <span>{ticketDistribution?.[0]?.count ?? 0}</span>
+                  <span>VIP</span>
+                  <span>{ticketDistribution?.[1]?.count ?? 0}</span>
+                </div>
+                {ticketDistribution[0].count === 0 &&
+                  ticketDistribution[1].count === 0 && (
+                    <div className="mt-2 text-center text-muted-foreground">
+                      No ticket sales yet
                     </div>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm font-medium">
-                      Total Tickets Sold
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold">
-                      {stats?.totalRegistrations || 0}
-                    </div>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm font-medium">
-                      Total Revenue
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold">
-                      ${stats?.totalRevenue?.toFixed(2) || "0.00"}
-                    </div>
-                  </CardContent>
-                </Card>
-              </>
-            )}
+                  )}
+              </CardContent>
+            </Card>
           </div>
-
+          <div className="grid gap-4 md:grid-cols-2">
+            <Card>
+              <CardHeader>
+                <CardTitle>Monthly Revenue</CardTitle>
+                <div className="text-xs text-muted-foreground">
+                  Last 6 months of revenue
+                </div>
+              </CardHeader>
+              <CardContent style={{ height: 220 }}>
+                {monthlyRevenue.length > 0 &&
+                monthlyRevenue.some((m) => m.revenue > 0) ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart
+                      data={monthlyRevenue}
+                      margin={{ top: 10, right: 20, left: 0, bottom: 0 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="month" />
+                      <YAxis />
+                      <Tooltip />
+                      <Line
+                        type="monotone"
+                        dataKey="revenue"
+                        stroke="#3b82f6"
+                        strokeWidth={2}
+                        dot={false}
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="flex h-full items-center justify-center text-muted-foreground">
+                    No revenue data
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader>
+                <CardTitle>Upcoming Events</CardTitle>
+                <div className="text-xs text-muted-foreground">
+                  Your next scheduled events
+                </div>
+              </CardHeader>
+              <CardContent>
+                {/* Placeholder for upcoming events */}
+                <div className="text-muted-foreground">No upcoming events</div>
+              </CardContent>
+            </Card>
+          </div>
           <Card>
             <CardHeader>
-              <CardTitle>Recent Activity</CardTitle>
+              <CardTitle>Activity Feed</CardTitle>
+              <div className="text-xs text-muted-foreground">
+                Recent event and ticket activity
+              </div>
             </CardHeader>
             <CardContent>
               {isLoading ? (
@@ -99,7 +202,7 @@ export default function OrganizerDashboardPage() {
                 </div>
               ) : stats?.recentRegistrations?.length ? (
                 <div className="space-y-2">
-                  {stats.recentRegistrations.map((reg) => (
+                  {stats.recentRegistrations.map((reg: Registration) => (
                     <div
                       key={reg.id}
                       className="flex items-center justify-between rounded-lg border p-3"
@@ -128,7 +231,9 @@ export default function OrganizerDashboardPage() {
         <TabsContent value="events">
           <div className="mb-4 flex justify-end">
             <Button asChild variant="outline">
-              <Link href="/organizer/events/new">Create New Event</Link>
+              <span>
+                <Link href="/organizer/events/new">Create New Event</Link>
+              </span>
             </Button>
           </div>
           <EventsList />
@@ -143,7 +248,7 @@ export default function OrganizerDashboardPage() {
 }
 
 function EventsList() {
-  const { data: events, isLoading } = api.event.getOrganizerEvents.useQuery();
+  const { data: events, isLoading } = api.event.getOrganizerEvents.useQuery({});
 
   if (isLoading) {
     return (
@@ -170,7 +275,7 @@ function EventsList() {
 
   return (
     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-      {events.map((event) => (
+      {events.map((event: Event) => (
         <Card key={event.id} className="overflow-hidden">
           <div className="bg-muted p-0">
             <div className="h-32 bg-blue-100" />
@@ -205,10 +310,14 @@ function EventsList() {
             </p>
             <div className="mt-4 flex justify-between">
               <Button variant="outline" asChild>
-                <Link href={`/organizer/events/${event.id}`}>Manage</Link>
+                <span>
+                  <Link href={`/organizer/events/${event.id}`}>Manage</Link>
+                </span>
               </Button>
               <Button variant="outline" asChild>
-                <Link href={`/events/${event.id}`}>View</Link>
+                <span>
+                  <Link href={`/events/${event.id}`}>View</Link>
+                </span>
               </Button>
             </div>
           </CardContent>
@@ -220,7 +329,7 @@ function EventsList() {
 
 function AttendeesList() {
   const { data: attendees, isLoading } =
-    api.event.getOrganizerAttendees.useQuery();
+    api.event.getOrganizerAttendees.useQuery({});
 
   if (isLoading) {
     return (
@@ -248,7 +357,7 @@ function AttendeesList() {
       </CardHeader>
       <CardContent>
         <div className="space-y-2">
-          {attendees.map((attendee) => (
+          {attendees.map((attendee: Attendee) => (
             <div
               key={attendee.id}
               className="flex items-center justify-between rounded-lg border p-3"
@@ -272,9 +381,11 @@ function AttendeesList() {
                   {attendee.status}
                 </span>
                 <Button variant="outline" size="sm" asChild>
-                  <Link href={`/organizer/attendees/${attendee.id}`}>
-                    Details
-                  </Link>
+                  <span>
+                    <Link href={`/organizer/attendees/${attendee.id}`}>
+                      Details
+                    </Link>
+                  </span>
                 </Button>
               </div>
             </div>
