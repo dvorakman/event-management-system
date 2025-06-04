@@ -1,7 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { Suspense } from "react";
+import { Suspense, use } from "react";
 
 // Dynamically import the component only when needed with suspense
 const PaymentVerification = dynamic(() => import("./PaymentVerification"), {
@@ -21,22 +21,26 @@ function LoadingState() {
 }
 
 type Props = {
-  params: { id: string };
-  searchParams: { [key: string]: string | string[] | undefined };
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 };
 
 export default function RegistrationSuccessPage({
   params,
   searchParams,
 }: Props) {
+  // Unwrap the promises using React.use()
+  const resolvedParams = use(params);
+  const resolvedSearchParams = use(searchParams);
+  
   // Extract session_id from search params
-  const sessionId = typeof searchParams.session_id === 'string' 
-    ? searchParams.session_id 
+  const sessionId = typeof resolvedSearchParams.session_id === 'string' 
+    ? resolvedSearchParams.session_id 
     : null;
   
   return (
     <Suspense fallback={<LoadingState />}>
-      <SuccessPageContent eventId={params.id} sessionId={sessionId} />
+      <SuccessPageContent eventId={resolvedParams.id} sessionId={sessionId} />
     </Suspense>
   );
 }

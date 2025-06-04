@@ -87,7 +87,7 @@ export function EventActionButtons({
         )}
         <Button
           variant="outline"
-          onClick={() => router.back()}
+          onClick={() => router.push('/events')}
         >
           Back to Events
         </Button>
