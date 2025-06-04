@@ -110,8 +110,31 @@ export function FeaturedEvents() {
               </div>
               <div className="mt-6 flex-shrink-0">
                 <Link href={`/events/${event.id}`}>
-                  <Button className="w-full">
-                    {event.isSoldOut ? "View Details" : "Register Now"}
+                  <Button 
+                    className="w-full"
+                    variant={
+                      event.userRegistration 
+                        ? "secondary" 
+                        : event.isSoldOut 
+                          ? "default" 
+                          : "default"
+                    }
+                    disabled={!!(event.userRegistration && event.userRegistration.status !== "cancelled")}
+                  >
+                    {event.userRegistration
+                      ? event.userRegistration.status === "confirmed"
+                        ? `Already Registered (${event.userRegistration.ticketType})`
+                        : event.userRegistration.status === "pending"
+                          ? "Registration Pending"
+                          : event.userRegistration.status === "cancelled"
+                            ? event.isSoldOut 
+                              ? "View Details" 
+                              : "Register Now"
+                            : "Already Registered"
+                      : event.isSoldOut 
+                        ? "View Details" 
+                        : "Register Now"
+                    }
                   </Button>
                 </Link>
               </div>

@@ -117,19 +117,47 @@ export const eventRouter = createTRPCRouter({
       )
       .limit(6);
 
-    // Add calculated fields
-    return featuredEvents.map(event => {
-      const registrationCount = Number(event.registrationCount);
-      const isSoldOut = registrationCount >= event.maxAttendees;
-      const availableSpots = event.maxAttendees - registrationCount;
+    // Add calculated fields and check user registration status
+    const eventsWithCalculatedFields = await Promise.all(
+      featuredEvents.map(async (event) => {
+        const registrationCount = Number(event.registrationCount);
+        const isSoldOut = registrationCount >= event.maxAttendees;
+        const availableSpots = event.maxAttendees - registrationCount;
 
-      return {
-        ...event,
-        registrationCount,
-        isSoldOut,
-        availableSpots,
-      };
-    });
+        // Check if current user is already registered (if authenticated)
+        let userRegistration = null;
+        if (ctx.userId) {
+          const userRegResult = await ctx.db
+            .select()
+            .from(registrations)
+            .where(
+              and(
+                eq(registrations.eventId, event.id),
+                eq(registrations.userId, ctx.userId),
+                // Include all statuses except refunded to prevent multiple registrations
+                or(
+                  eq(registrations.status, "pending"),
+                  eq(registrations.status, "confirmed"),
+                  eq(registrations.status, "cancelled")
+                )
+              )
+            )
+            .limit(1);
+          
+          userRegistration = userRegResult[0] || null;
+        }
+
+        return {
+          ...event,
+          registrationCount,
+          isSoldOut,
+          availableSpots,
+          userRegistration,
+        };
+      })
+    );
+
+    return eventsWithCalculatedFields;
   }),
 
   // Get all events with filtering options
