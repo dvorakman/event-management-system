@@ -79,9 +79,10 @@ export const createTRPCContext = async (opts: { headers: Headers }) => {
     };
   }
 
-  // Check if user exists in our database (for foreign key relationships only)
+  // Check if user exists in our database and get/create the user
+  let dbUser = null;
   try {
-    const dbUser = await db.query.users.findFirst({
+    dbUser = await db.query.users.findFirst({
       where: eq(users.id, userId),
     });
     
@@ -92,7 +93,7 @@ export const createTRPCContext = async (opts: { headers: Headers }) => {
       // Get user info from Clerk to satisfy not-null constraints
       const clerkUser = await currentUser();
       
-      await db.insert(users).values({
+      const [newUser] = await db.insert(users).values({
         id: userId,
         email: clerkUser?.emailAddresses[0]?.emailAddress || `${userId}@unknown.com`,
         name: clerkUser?.fullName || clerkUser?.firstName || clerkUser?.username || "Unknown User",
@@ -100,17 +101,20 @@ export const createTRPCContext = async (opts: { headers: Headers }) => {
         role: role as any || "user",
         createdAt: new Date(),
         updatedAt: new Date(),
-      });
+      }).returning();
+      
+      dbUser = newUser;
     }
   } catch (error) {
     console.error("[TRPC Context] Database error:", error);
     // Non-fatal error, continue with context
   }
 
-  // Return context with user info from Clerk
+  // Return context with user info from Clerk and database
   return {
     db,
     userId,
+    dbUser,
     headers: opts.headers,
     userRole: role,
     onboardingComplete,
@@ -219,8 +223,9 @@ export const protectedProcedure = t.procedure
     return next({
       ctx: {
         ...ctx,
-        // Pass userId and role info to the procedure
+        // Pass userId, dbUser and role info to the procedure
         userId: ctx.userId,
+        dbUser: ctx.dbUser,
         userRole: ctx.userRole,
         onboardingComplete: ctx.onboardingComplete,
       },

@@ -11,7 +11,7 @@ export const registrationRouter = createTRPCRouter({
   createRegistration: protectedProcedure
     .input(
       z.object({
-        eventId: z.number(),
+        eventId: z.string(),
         ticketType: z.enum(["general", "vip"]),
         // Add other fields needed from the client for registration
       }),
