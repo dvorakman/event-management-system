@@ -4,33 +4,33 @@
 
 @layer base {
   :root {
-    --background: 0 0% 8%; /* #151313 Dark Background */
-    --foreground: 0 0% 100%; /* #ffffff White Text */
+    --background: 0 0% 100%; /* #ffffff White Background */
+    --foreground: 0 0% 3.9%; /* #0a0a0a Dark Text */
 
-    --card: 0 0% 10%; /* #191919 Dark Gray */
-    --card-foreground: 0 0% 100%; /* #ffffff White Text */
+    --card: 0 0% 100%; /* #ffffff White Card */
+    --card-foreground: 0 0% 3.9%; /* #0a0a0a Dark Text */
 
-    --popover: 0 0% 10%; /* #191919 Dark Gray */
-    --popover-foreground: 0 0% 100%; /* #ffffff White Text */
+    --popover: 0 0% 100%; /* #ffffff White Popover */
+    --popover-foreground: 0 0% 3.9%; /* #0a0a0a Dark Text */
 
     --primary: 36 100% 50%; /* #ff9900 Brand Orange */
     --primary-foreground: 0 0% 0%; /* #000000 Black Text on Orange */
 
-    --secondary: 0 0% 10%; /* #191919 Dark Gray for section backgrounds */
-    --secondary-foreground: 215 20% 65%; /* #94a3b8 Light Gray for secondary text */
+    --secondary: 0 0% 96.1%; /* #f5f5f5 Light Gray */
+    --secondary-foreground: 0 0% 9%; /* #171717 Dark Text */
 
-    --muted: 0 0% 10%; /* #191919 Dark Gray for muted backgrounds */
-    --muted-foreground: 215 20% 65%; /* #94a3b8 Light Gray for muted text */
+    --muted: 0 0% 96.1%; /* #f5f5f5 Light Gray */
+    --muted-foreground: 0 0% 45.1%; /* #737373 Gray Text */
 
-    --accent: 36 100% 50%; /* #ff9900 Brand Orange for accents */
-    --accent-foreground: 0 0% 0%; /* #000000 Black Text on Orange accents */
+    --accent: 36 100% 50%; /* #ff9900 Brand Orange */
+    --accent-foreground: 0 0% 0%; /* #000000 Black Text on Orange */
 
-    --destructive: 0 84.2% 60.2%; /* Keeping original, not specified in new scheme */
-    --destructive-foreground: 0 0% 98%; /* Keeping original */
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
 
-    --border: 210 14% 47%; /* #64748b Slate Gray */
-    --input: 210 14% 47%; /* #64748b Slate Gray for input borders */
-    --ring: 36 100% 50%; /* #ff9900 Brand Orange for rings */
+    --border: 0 0% 89.8%; /* #e5e5e5 Light Gray */
+    --input: 0 0% 89.8%; /* #e5e5e5 Light Gray */
+    --ring: 36 100% 50%; /* #ff9900 Brand Orange */
 
     --radius: 0.5rem;
   }
@@ -48,21 +48,21 @@
     --primary: 36 100% 50%; /* #ff9900 Brand Orange */
     --primary-foreground: 0 0% 0%; /* #000000 Black Text on Orange */
 
-    --secondary: 0 0% 10%; /* #191919 Dark Gray for section backgrounds */
-    --secondary-foreground: 215 20% 65%; /* #94a3b8 Light Gray for secondary text */
+    --secondary: 0 0% 10%; /* #191919 Dark Gray */
+    --secondary-foreground: 215 20% 65%; /* #94a3b8 Light Gray */
 
-    --muted: 0 0% 10%; /* #191919 Dark Gray for muted backgrounds */
-    --muted-foreground: 215 20% 65%; /* #94a3b8 Light Gray for muted text */
+    --muted: 0 0% 10%; /* #191919 Dark Gray */
+    --muted-foreground: 215 20% 65%; /* #94a3b8 Light Gray */
 
-    --accent: 36 100% 50%; /* #ff9900 Brand Orange for accents */
-    --accent-foreground: 0 0% 0%; /* #000000 Black Text on Orange accents */
+    --accent: 36 100% 50%; /* #ff9900 Brand Orange */
+    --accent-foreground: 0 0% 0%; /* #000000 Black Text on Orange */
 
-    --destructive: 0 62.8% 30.6%; /* Keeping original dark destructive, not specified in new scheme */
-    --destructive-foreground: 0 0% 98%; /* Keeping original dark destructive-foreground */
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 98%;
 
     --border: 210 14% 47%; /* #64748b Slate Gray */
-    --input: 210 14% 47%; /* #64748b Slate Gray for input borders */
-    --ring: 36 100% 50%; /* #ff9900 Brand Orange for rings */
+    --input: 210 14% 47%; /* #64748b Slate Gray */
+    --ring: 36 100% 50%; /* #ff9900 Brand Orange */
   }
 }
 

@@ -27,7 +27,7 @@ function EventDetailsLoading() {
 }
 
 // Component to fetch and display event details
-async function EventDetails({ id }: { id: number }) {
+async function EventDetails({ id }: { id: string }) {
   const event = await api.event.byId({ id });
 
   if (!event) {
@@ -151,11 +151,9 @@ type Props = {
 };
 
 export default async function EventPage({ params }: Props) {
-  const id = parseInt(params.id, 10);
-
   return (
     <Suspense fallback={<EventDetailsLoading />}>
-      <EventDetails id={id} />
+      <EventDetails id={params.id} />
     </Suspense>
   );
 }

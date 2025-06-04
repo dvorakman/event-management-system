@@ -23,7 +23,7 @@ if (!dbUrl) {
 
 export default defineConfig({
   schema: "./src/server/db/schema.ts",
-  out: "./drizzle",
+  out: "./drizzle/migrations",
   dialect: "postgresql",
   dbCredentials: {
     url: dbUrl || "postgresql://postgres:postgres@localhost:5432/postgres",

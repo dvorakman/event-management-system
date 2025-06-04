@@ -134,16 +134,13 @@ As an attendee, you'll receive notifications for:
 
 ## Organizer Guide
 
-### Becoming an Organizer
+### Role Selection at Signup
 
-1. Sign in to your account
-2. Click on your profile picture and select "Become an Organizer"
-3. Complete the organizer application form:
-   - Organization name
-   - Organization description
-   - Contact information
-4. Submit the application
-5. Once approved, you'll have access to the Organizer Dashboard
+When creating your account, you'll be asked to choose your role:
+1. User (Attendee): For discovering and attending events
+2. Organizer: For creating and managing events
+
+Your selected role determines the features available to you. If you sign up as an organizer, you'll have access to the Organizer Dashboard immediately.
 
 ### Creating Events
 

@@ -59,17 +59,11 @@ CREATE TABLE "event-management-system_ticket" (
 CREATE TABLE "event-management-system_user" (
 	"id" text PRIMARY KEY NOT NULL,
 	"email" text NOT NULL,
-	"first_name" text,
-	"last_name" text,
-	"username" text,
-	"profile_image" text,
+	"name" text NOT NULL,
+	"image_url" text,
 	"role" "user_role" DEFAULT 'user' NOT NULL,
-	"external_id" text,
-	"metadata" text,
-	"last_sign_in_at" timestamp with time zone,
 	"created_at" timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
-	"updated_at" timestamp with time zone,
-	"became_organizer_at" timestamp
+	"updated_at" timestamp with time zone
 );
 --> statement-breakpoint
 ALTER TABLE "event-management-system_event" ADD CONSTRAINT "event-management-system_event_organizer_id_event-management-system_user_id_fk" FOREIGN KEY ("organizer_id") REFERENCES "public"."event-management-system_user"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
@@ -90,5 +84,4 @@ CREATE INDEX "event_idx" ON "event-management-system_registration" USING btree (
 CREATE INDEX "registration_status_idx" ON "event-management-system_registration" USING btree ("status");--> statement-breakpoint
 CREATE INDEX "registration_idx" ON "event-management-system_ticket" USING btree ("registration_id");--> statement-breakpoint
 CREATE INDEX "ticket_number_idx" ON "event-management-system_ticket" USING btree ("ticket_number");--> statement-breakpoint
-CREATE INDEX "email_idx" ON "event-management-system_user" USING btree ("email");--> statement-breakpoint
-CREATE INDEX "username_idx" ON "event-management-system_user" USING btree ("username");
+CREATE INDEX "email_idx" ON "event-management-system_user" USING btree ("email");
