@@ -97,12 +97,12 @@ function SearchFilters({
                     </div>
                     <div>
                         <Label htmlFor="category" className="text-white">Category</Label>
-                        <Select value={category ?? ''} onValueChange={(value) => setCategory(value as Category || undefined)}>
+                        <Select value={category ?? 'all'} onValueChange={(value) => setCategory(value === 'all' ? undefined : value as Category)}>
                             <SelectTrigger className="bg-gray-700 text-white border-gray-600">
                                 <SelectValue placeholder="All Categories" />
                             </SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="">All Categories</SelectItem>
+                                <SelectItem value="all">All Categories</SelectItem>
                                 <SelectItem value="conference">Conference</SelectItem>
                                 <SelectItem value="music_concert">Music Concert</SelectItem>
                                 <SelectItem value="networking">Networking Session</SelectItem>
