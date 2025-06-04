@@ -162,7 +162,7 @@ export function RegistrationModal({
               Sorry, this event is sold out!
             </p>
             <p className="mt-2 text-sm text-gray-600">
-              All {availableSpots + 1} spots have been filled.
+              Unfortunately, there are no more spots available for this event.
             </p>
           </div>
           <DialogFooter>
