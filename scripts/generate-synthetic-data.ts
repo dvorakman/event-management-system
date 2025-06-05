@@ -1,6 +1,6 @@
 import { faker } from "@faker-js/faker";
-import { db } from "../src/server/db/index.js";
-import { users, events, registrations, tickets, notifications } from "../src/server/db/schema.js";
+import { db } from "../src/server/db/index.ts";
+import { users, events, registrations, tickets, notifications } from "../src/server/db/schema.ts";
 import { eq } from "drizzle-orm";
 
 const NUM_EVENTS = 25;
@@ -138,7 +138,7 @@ function generateEmergencyContact(): { name: string; phone: string } {
 }
 
 async function main() {
-  console.log("🚀 Starting synthetic data generation...\n");
+  console.log("Starting synthetic data generation...\n");
 
   // Fetch organizers and users from DB
   const allUsers = await db.select().from(users) as Array<{ id: string; name: string; role: string }>;
@@ -149,7 +149,7 @@ async function main() {
     throw new Error("No organizers or users found in DB. Run sync-users.ts first.");
   }
 
-  console.log(`📊 Found ${organizers.length} organizers and ${regularUsers.length} users`);
+  console.log(`Found ${organizers.length} organizers and ${regularUsers.length} users`);
 
   // Generate events with realistic capacities and occupancy targets
   const eventData: Array<{ id: string; capacity: number; target: number; type: string; generalPrice: number; vipPrice: number }> = [];
@@ -197,10 +197,10 @@ async function main() {
       vipPrice
     });
     
-    console.log(`✅ Created ${occupancy.type} event: "${event.name}" (${eventType}) - Capacity: ${capacity}, Target: ${Math.round(occupancy.target * 100)}%`);
+    console.log(`Created ${occupancy.type} event: "${event.name}" (${eventType}) - Capacity: ${capacity}, Target: ${Math.round(occupancy.target * 100)}%`);
   }
 
-  console.log(`\n🎫 Generating registrations based on occupancy targets...\n`);
+  console.log(`\nGenerating registrations based on occupancy targets...\n`);
 
   // Generate registrations based on occupancy targets (only for published events)
   let totalRegistrations = 0;
@@ -211,7 +211,7 @@ async function main() {
     const eventRecord = await db.select().from(events).where(eq(events.id, event.id)).limit(1);
     
     if (!eventRecord[0] || eventRecord[0].status === "draft") {
-      console.log(`⏩ Skipping registrations for draft event: ${event.id}`);
+      console.log(`Skipping registrations for draft event: ${event.id}`);
       return;
     }
     
@@ -325,27 +325,24 @@ async function main() {
     // Ensure minimum registration count (at least 5% for any event)
     const minimumRegistrations = Math.max(1, Math.floor(event.capacity * 0.05));
     if (registrationsCreated < minimumRegistrations && registrationsCreated < targetRegistrations) {
-      console.log(`⚠️  Event ${event.id} only has ${registrationsCreated} registrations, target was ${targetRegistrations}`);
+      console.log(`Warning: Event ${event.id} only has ${registrationsCreated} registrations, target was ${targetRegistrations}`);
     }
 
     const actualPercentage = Math.round((registrationsCreated / event.capacity) * 100);
-    const statusIcon = event.type === "sold-out" ? "🔴" : 
-                      event.type === "nearly-sold-out" ? "🟡" : 
-                      event.type === "popular" ? "🟢" : "🔵";
     
-    console.log(`${statusIcon} Event ${event.id}: ${registrationsCreated}/${event.capacity} registrations (${actualPercentage}%)`);
-  }
+    console.log(`Event ${event.id}: ${registrationsCreated}/${event.capacity} registrations (${actualPercentage}%)`);
+  }));
 
-  console.log(`\n✨ Synthetic data generation complete!`);
-  console.log(`📈 Created ${NUM_EVENTS} events with ${totalRegistrations} total registrations`);
-  console.log(`🎭 Event distribution: 15% sold out, 15% nearly sold out, 30% popular, 40% available`);
-  console.log(`📊 Event sizes: 50% small (15-50), 30% medium (50-200), 20% large (200-500)`);
-  console.log(`⏰ Event timing: 10% past events, 10% near future, 80% future events`);
-  console.log(`💰 Realistic pricing: Conference ($50-200), Concert ($30-150), Networking ($15-60)`);
-  console.log(`🎫 Improved registration targeting with fallback mechanisms`);
-  console.log(`🍽️ Dietary requirements: ~30% of registrations`);
-  console.log(`♿ Special needs: ~15% of registrations`);
-  console.log(`📞 Emergency contacts: 100% of registrations`);
+  console.log(`\nSynthetic data generation complete!`);
+  console.log(`Created ${NUM_EVENTS} events with ${totalRegistrations} total registrations`);
+  console.log(`Event distribution: 15% sold out, 15% nearly sold out, 30% popular, 40% available`);
+  console.log(`Event sizes: 50% small (15-50), 30% medium (50-200), 20% large (200-500)`);
+  console.log(`Event timing: 10% past events, 10% near future, 80% future events`);
+  console.log(`Realistic pricing: Conference ($50-200), Concert ($30-150), Networking ($15-60)`);
+  console.log(`Improved registration targeting with fallback mechanisms`);
+  console.log(`Dietary requirements: ~30% of registrations`);
+  console.log(`Special needs: ~15% of registrations`);
+  console.log(`Emergency contacts: 100% of registrations`);
 }
 
 if (require.main === module) {
