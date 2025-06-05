@@ -1,4 +1,4 @@
-"use client";
+"use client"; // Needed for hooks like useState and tRPC's useQuery
 
 import Link from "next/link";
 import { Suspense, useState, useEffect } from "react";
@@ -62,7 +62,6 @@ function EventsLoading() {
   );
 }
 
-// Component to display events with filtering
 function EventsList() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -93,15 +92,10 @@ function EventsList() {
   const { data: eventsData, isLoading } = api.event.list.useQuery(
     {
       limit: 10,
-      cursor: cursor ? Number.parseInt(cursor) : undefined,
+      cursor: cursor ? cursor : undefined,
       type:
         typeFilter && typeFilter !== "all"
-          ? (typeFilter as
-              | "conference"
-              | "concert"
-              | "workshop"
-              | "networking"
-              | "other")
+          ? (typeFilter as "conference" | "music_concert" | "networking")
           : undefined,
       search: searchQuery ?? undefined,
       minPrice: priceMin ? Number.parseFloat(priceMin) : undefined,
@@ -169,82 +163,247 @@ function EventsList() {
     });
   };
 
+  // Show loading state
+  if (isLoading) {
+    return <EventsLoading />;
+  }
+
   // No events found state
   if (!isLoading && (!filteredEvents || filteredEvents.length === 0)) {
     return (
+      <div className="min-h-screen bg-gray-900">
+        <div className="container mx-auto px-4 py-8">
+          <h1 className="mb-8 text-3xl font-bold text-white">Events</h1>
+
+          {/* Filter Section */}
+          <div className="mb-8 rounded-lg border border-gray-700 bg-gray-800 p-6 shadow-md">
+            <h2 className="mb-4 text-xl font-semibold text-white">
+              Filter Events
+            </h2>
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+              {/* First Row: Search and Type */}
+              <div>
+                <Label htmlFor="search" className="text-white">
+                  Search
+                </Label>
+                <Input
+                  id="search"
+                  placeholder="Search events..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="border-gray-600 bg-gray-700 text-white"
+                />
+              </div>
+              <div>
+                <Label htmlFor="type" className="text-white">
+                  Event Type
+                </Label>
+                <Select value={type} onValueChange={setType}>
+                  <SelectTrigger
+                    id="type"
+                    className="border-gray-600 bg-gray-700 text-white"
+                  >
+                    <SelectValue placeholder="All types" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All types</SelectItem>
+                    <SelectItem value="conference">Conference</SelectItem>
+                    <SelectItem value="music_concert">Music Concert</SelectItem>
+                    <SelectItem value="networking">Networking</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="location" className="text-white">
+                  Location
+                </Label>
+                <Input
+                  id="location"
+                  placeholder="Enter location..."
+                  value={location}
+                  onChange={(e) => setLocation(e.target.value)}
+                  className="border-gray-600 bg-gray-700 text-white"
+                />
+              </div>
+
+              {/* Second Row: Price Range and Date Range */}
+              <div>
+                <Label htmlFor="priceMin" className="text-white">
+                  Min Price
+                </Label>
+                <Input
+                  id="priceMin"
+                  type="number"
+                  placeholder="Min price"
+                  value={priceMin}
+                  onChange={(e) => setPriceMin(e.target.value)}
+                  className="border-gray-600 bg-gray-700 text-white"
+                />
+              </div>
+              <div>
+                <Label htmlFor="priceMax" className="text-white">
+                  Max Price
+                </Label>
+                <Input
+                  id="priceMax"
+                  type="number"
+                  placeholder="Max price"
+                  value={priceMax}
+                  onChange={(e) => setPriceMax(e.target.value)}
+                  className="border-gray-600 bg-gray-700 text-white"
+                />
+              </div>
+              <div>
+                <Label className="text-white">Date Range</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "w-full justify-start border-gray-600 bg-gray-700 text-left font-normal text-white hover:bg-gray-600",
+                        !dateRange[0]?.startDate && "text-gray-400",
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {dateRange[0]?.startDate && dateRange[0]?.endDate ? (
+                        <>
+                          {formatDate(dateRange[0].startDate)} -{" "}
+                          {formatDate(dateRange[0].endDate)}
+                        </>
+                      ) : (
+                        <span>Pick a date range</span>
+                      )}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <DateRange
+                      editableDateInputs={true}
+                      onChange={(ranges: RangeKeyDict) => {
+                        if (ranges.selection) {
+                          setDateRange([ranges.selection]);
+                        }
+                      }}
+                      moveRangeOnFirstSelection={false}
+                      ranges={dateRange}
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+            </div>
+            <div className="mt-4 flex gap-2">
+              <Button onClick={applyFilters}>Apply Filters</Button>
+              <Button variant="outline" onClick={clearFilters}>
+                Clear Filters
+              </Button>
+            </div>
+          </div>
+
+          {/* No Events Message */}
+          <div className="py-12 text-center">
+            <h3 className="mb-2 text-xl font-semibold text-white">
+              No Events Found
+            </h3>
+            <p className="text-gray-400">
+              Try adjusting your filters or check back later for new events.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-900">
       <div className="container mx-auto px-4 py-8">
-        <h1 className="mb-8 text-3xl font-bold">Events</h1>
+        <h1 className="mb-8 text-3xl font-bold text-white">Events</h1>
 
         {/* Filter Section */}
-        <div className="mb-8 rounded-lg bg-white p-6 shadow-md dark:bg-gray-800">
-          <h2 className="mb-4 text-xl font-semibold">Filter Events</h2>
+        <div className="mb-8 rounded-lg border border-gray-700 bg-gray-800 p-6 shadow-md">
+          <h2 className="mb-4 text-xl font-semibold text-white">
+            Filter Events
+          </h2>
           <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
             {/* First Row: Search and Type */}
             <div>
-              <Label htmlFor="search">Search</Label>
+              <Label htmlFor="search" className="text-white">
+                Search
+              </Label>
               <Input
                 id="search"
                 placeholder="Search events..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
+                className="border-gray-600 bg-gray-700 text-white"
               />
             </div>
             <div>
-              <Label htmlFor="type">Event Type</Label>
+              <Label htmlFor="type" className="text-white">
+                Event Type
+              </Label>
               <Select value={type} onValueChange={setType}>
-                <SelectTrigger id="type">
+                <SelectTrigger
+                  id="type"
+                  className="border-gray-600 bg-gray-700 text-white"
+                >
                   <SelectValue placeholder="All types" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All types</SelectItem>
                   <SelectItem value="conference">Conference</SelectItem>
-                  <SelectItem value="concert">Concert</SelectItem>
-                  <SelectItem value="workshop">Workshop</SelectItem>
+                  <SelectItem value="music_concert">Music Concert</SelectItem>
                   <SelectItem value="networking">Networking</SelectItem>
-                  <SelectItem value="other">Other</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             <div>
-              <Label htmlFor="location">Location</Label>
+              <Label htmlFor="location" className="text-white">
+                Location
+              </Label>
               <Input
                 id="location"
                 placeholder="Enter location..."
                 value={location}
                 onChange={(e) => setLocation(e.target.value)}
+                className="border-gray-600 bg-gray-700 text-white"
               />
             </div>
 
             {/* Second Row: Price Range and Date Range */}
             <div>
-              <Label htmlFor="priceMin">Min Price</Label>
+              <Label htmlFor="priceMin" className="text-white">
+                Min Price
+              </Label>
               <Input
                 id="priceMin"
                 type="number"
                 placeholder="Min price"
                 value={priceMin}
                 onChange={(e) => setPriceMin(e.target.value)}
+                className="border-gray-600 bg-gray-700 text-white"
               />
             </div>
             <div>
-              <Label htmlFor="priceMax">Max Price</Label>
+              <Label htmlFor="priceMax" className="text-white">
+                Max Price
+              </Label>
               <Input
                 id="priceMax"
                 type="number"
                 placeholder="Max price"
                 value={priceMax}
                 onChange={(e) => setPriceMax(e.target.value)}
+                className="border-gray-600 bg-gray-700 text-white"
               />
             </div>
             <div>
-              <Label>Date Range</Label>
+              <Label className="text-white">Date Range</Label>
               <Popover>
                 <PopoverTrigger asChild>
                   <Button
                     variant="outline"
                     className={cn(
-                      "w-full justify-start text-left font-normal",
-                      !dateRange[0]?.startDate && "text-muted-foreground",
+                      "w-full justify-start border-gray-600 bg-gray-700 text-left font-normal text-white hover:bg-gray-600",
+                      !dateRange[0]?.startDate && "text-gray-400",
                     )}
                   >
                     <CalendarIcon className="mr-2 h-4 w-4" />
@@ -281,156 +440,57 @@ function EventsList() {
           </div>
         </div>
 
-        <div className="rounded-lg bg-white p-8 text-center shadow-md dark:bg-gray-800">
-          <h2 className="text-xl font-semibold">No events found</h2>
-          <p className="mt-2 text-gray-600 dark:text-gray-400">
-            Try adjusting your filters or check back later for upcoming events.
-          </p>
-        </div>
-      </div>
-    );
-  }
+        {/* Events Grid */}
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+          {filteredEvents?.map((event) => (
+            <div
+              key={event.id}
+              className="flex flex-col rounded-lg border border-gray-700 bg-gray-800 p-6 shadow-md transition-colors hover:border-gray-600"
+            >
+              {/* Event Type Badge */}
+              <div className="mb-3">
+                <span className="rounded-full bg-blue-100 px-2 py-1 text-xs font-medium capitalize text-blue-800 dark:bg-blue-900 dark:text-blue-200">
+                  {event.type.replace("_", " ")}
+                </span>
+              </div>
 
-  return (
-    <div className="container mx-auto px-4 py-8">
-      <h1 className="mb-8 text-3xl font-bold">Events</h1>
+              {/* Event Title */}
+              <h3 className="mb-3 line-clamp-2 text-lg font-semibold text-white">
+                {event.name}
+              </h3>
 
-      {/* Filter Section */}
-      <div className="mb-8 rounded-lg bg-white p-6 shadow-md dark:bg-gray-800">
-        <h2 className="mb-4 text-xl font-semibold">Filter Events</h2>
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-          {/* First Row: Search and Type */}
-          <div>
-            <Label htmlFor="search">Search</Label>
-            <Input
-              id="search"
-              placeholder="Search events..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-          </div>
-          <div>
-            <Label htmlFor="type">Event Type</Label>
-            <Select value={type} onValueChange={setType}>
-              <SelectTrigger id="type">
-                <SelectValue placeholder="All types" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All types</SelectItem>
-                <SelectItem value="conference">Conference</SelectItem>
-                <SelectItem value="concert">Concert</SelectItem>
-                <SelectItem value="workshop">Workshop</SelectItem>
-                <SelectItem value="networking">Networking</SelectItem>
-                <SelectItem value="other">Other</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div>
-            <Label htmlFor="location">Location</Label>
-            <Input
-              id="location"
-              placeholder="Enter location..."
-              value={location}
-              onChange={(e) => setLocation(e.target.value)}
-            />
-          </div>
-
-          {/* Second Row: Price Range and Date Range */}
-          <div>
-            <Label htmlFor="priceMin">Min Price</Label>
-            <Input
-              id="priceMin"
-              type="number"
-              placeholder="Min price"
-              value={priceMin}
-              onChange={(e) => setPriceMin(e.target.value)}
-            />
-          </div>
-          <div>
-            <Label htmlFor="priceMax">Max Price</Label>
-            <Input
-              id="priceMax"
-              type="number"
-              placeholder="Max price"
-              value={priceMax}
-              onChange={(e) => setPriceMax(e.target.value)}
-            />
-          </div>
-          <div>
-            <Label>Date Range</Label>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  className={cn(
-                    "w-full justify-start text-left font-normal",
-                    !dateRange[0]?.startDate && "text-muted-foreground",
-                  )}
-                >
+              {/* Event Details */}
+              <div className="mb-4 space-y-2 text-sm text-gray-300">
+                <p className="flex items-center">
                   <CalendarIcon className="mr-2 h-4 w-4" />
-                  {dateRange[0]?.startDate && dateRange[0]?.endDate ? (
-                    <>
-                      {formatDate(dateRange[0].startDate)} -{" "}
-                      {formatDate(dateRange[0].endDate)}
-                    </>
-                  ) : (
-                    <span>Pick a date range</span>
-                  )}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
-                <DateRange
-                  editableDateInputs={true}
-                  onChange={(ranges: RangeKeyDict) => {
-                    if (ranges.selection) {
-                      setDateRange([ranges.selection]);
-                    }
-                  }}
-                  moveRangeOnFirstSelection={false}
-                  ranges={dateRange}
-                />
-              </PopoverContent>
-            </Popover>
-          </div>
-        </div>
-        <div className="mt-4 flex gap-2">
-          <Button onClick={applyFilters}>Apply Filters</Button>
-          <Button variant="outline" onClick={clearFilters}>
-            Clear Filters
-          </Button>
-        </div>
-      </div>
+                  {formatDate(event.startDate)}
+                </p>
+                <p className="flex items-center">📍 {event.location}</p>
+                <p className="font-semibold text-green-400">
+                  From ${Number(event.generalTicketPrice).toFixed(2)}
+                </p>
+              </div>
 
-      {/* Events Grid */}
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {filteredEvents?.map((event) => (
-          <div
-            key={event.id}
-            className="flex flex-col rounded-lg bg-white p-6 shadow-md dark:bg-gray-800"
-          >
-            <h2 className="mb-2 text-xl font-semibold">{event.name}</h2>
-            <p className="mb-4 text-gray-600 dark:text-gray-400">
-              {event.description}
-            </p>
-            <div className="mb-4 space-y-2">
-              <p className="text-sm text-gray-500 dark:text-gray-400">
-                <strong>Date:</strong> {formatDate(event.startDate)}
+              {/* Event Description */}
+              <p className="mb-4 line-clamp-3 flex-grow text-sm text-gray-400">
+                {event.description}
               </p>
-              <p className="text-sm text-gray-500 dark:text-gray-400">
-                <strong>Location:</strong> {event.location}
-              </p>
-              <p className="text-sm text-gray-500 dark:text-gray-400">
-                <strong>Type:</strong> {event.type}
-              </p>
-              <p className="text-sm text-gray-500 dark:text-gray-400">
-                <strong>Status:</strong> {event.status}
-              </p>
+
+              {/* View Details Button */}
+              <Link href={`/events/${event.id}`}>
+                <Button className="mt-auto w-full">View Details</Button>
+              </Link>
             </div>
-            <Link href={`/events/${event.id}`} className="mt-auto inline-block">
-              <Button>View Details</Button>
-            </Link>
+          ))}
+        </div>
+
+        {/* Show total count */}
+        {filteredEvents && filteredEvents.length > 0 && (
+          <div className="mt-8 text-center text-gray-400">
+            Showing {filteredEvents.length} event
+            {filteredEvents.length !== 1 ? "s" : ""}
           </div>
-        ))}
+        )}
       </div>
     </div>
   );
