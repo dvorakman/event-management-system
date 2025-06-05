@@ -1,46 +1,59 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useEffect, useState, useRef } from "react";
 import { Loader2 } from "lucide-react";
 import { useUser } from "@clerk/nextjs";
 import { api } from "~/trpc/react";
 import { TicketDisplay } from "~/app/_components/TicketDisplay";
 
 interface TicketData {
-  ticketId: string;
-  eventName: string;
+  id: string;
+  name: string;
+  email: string;
   ticketType: string;
-  purchaseDate: Date;
-  qrCodeUrl?: string; // Make QR code URL optional initially
+  ticketPrice: number;
+  eventId: string;
+  eventName: string;
+  eventDate: string;
+  eventLocation: string;
+  qrCode: string;
 }
 
-export default function PaymentVerification({ eventId }: { eventId: string }) {
+export default function PaymentVerification({ 
+  eventId, 
+  sessionId 
+}: { 
+  eventId: string; 
+  sessionId: string;
+}) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [ticketData, setTicketData] = useState<TicketData | null>(null);
-  const [mutationInitialized, setMutationInitialized] = useState(false);
+  const mutationCalled = useRef(false);
 
-  const searchParams = useSearchParams();
-  const session_id = searchParams.get("session_id");
   const { isLoaded, isSignedIn, user } = useUser();
 
   console.log("Payment verification auth state:", {
     isLoaded,
     isSignedIn,
     user: user ? { id: user.id } : null,
-    session_id,
+    sessionId,
   });
 
   const verifyPaymentMutation = api.event.verifyPayment.useMutation({
     onSuccess: (data) => {
       console.log("Payment verification successful:", data);
       setTicketData({
-        ticketId: data.ticketId,
-        eventName: data.eventName,
+        id: data.ticketId,
+        name: data.attendeeName,
+        email: data.attendeeEmail,
         ticketType: data.ticketType,
-        purchaseDate: data.purchaseDate,
-        qrCodeUrl: data.qrCodeUrl,
+        ticketPrice: data.ticketPrice,
+        eventId: eventId,
+        eventName: data.eventName,
+        eventDate: data.eventDate,
+        eventLocation: data.eventLocation,
+        qrCode: data.qrCodeUrl,
       });
       setLoading(false);
     },
@@ -52,7 +65,7 @@ export default function PaymentVerification({ eventId }: { eventId: string }) {
   });
 
   useEffect(() => {
-    if (!session_id) {
+    if (!sessionId) {
       setError("No session ID found. Cannot verify payment.");
       setLoading(false);
       return;
@@ -71,22 +84,25 @@ export default function PaymentVerification({ eventId }: { eventId: string }) {
       return;
     }
 
-    if (!mutationInitialized) {
-      setMutationInitialized(true);
-      console.log("Verifying payment with session_id:", session_id);
-      verifyPaymentMutation.mutate({
-        eventId: parseInt(eventId, 10),
-        sessionId: session_id,
-      });
+    // Prevent multiple mutation calls
+    if (mutationCalled.current) {
+      console.log("Payment verification already called, skipping duplicate");
+      return;
     }
+
+    mutationCalled.current = true;
+    console.log("Verifying payment with session_id:", sessionId);
+    verifyPaymentMutation.mutate({
+      eventId: eventId,
+      sessionId: sessionId,
+    });
   }, [
-    session_id,
+    sessionId,
     isLoaded,
     isSignedIn,
     user,
     eventId,
     verifyPaymentMutation,
-    mutationInitialized,
   ]);
 
   if (loading) {

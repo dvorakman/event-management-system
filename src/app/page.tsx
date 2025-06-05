@@ -3,9 +3,10 @@ import { SignedIn, SignedOut, SignInButton } from "@clerk/nextjs";
 
 import { HydrateClient } from "~/trpc/server";
 import { Button } from "~/components/ui/button";
+import { FeaturedEvents } from "~/components/event/FeaturedEvents";
 // import { InteractiveHoverButton } from "~/components/ui/interactive-hover-button";
 // import { Globe } from "~/components/ui/globe";
-import { BackgroundGradient } from "~/components/ui/background-gradient";
+// import { BackgroundGradient } from "~/components/ui/background-gradient";
 // import { BackgroundBoxes } from "~/components/ui/background-boxes";
 
 export default async function Home() {
@@ -101,45 +102,13 @@ export default async function Home() {
           </div>
         </section>
 
-        {/* Featured Events Section (would be dynamically populated in a real app) */}
+        {/* Featured Events Section */}
         <section className="bg-gray-50 py-16 dark:bg-gray-900">
           <div className="container mx-auto px-4 sm:px-6 lg:px-8">
             <h2 className="mb-12 text-center text-3xl font-bold tracking-tight text-gray-900 dark:text-white sm:text-4xl">
               Featured Events
             </h2>
-            <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-3">
-              {/* This would be mapped from actual events */}
-              {[1, 2, 3].map((i) => (
-                <BackgroundGradient key={i} containerClassName="rounded-lg">
-                  <div className="flex flex-col overflow-hidden rounded-3xl shadow-lg">
-                    <div className="h-48 bg-blue-200" />
-                    <div className="flex flex-1 flex-col justify-between bg-white p-6 dark:bg-gray-800">
-                      <div>
-                        <p className="text-sm font-medium text-blue-600">
-                          {i === 1
-                            ? "Conference"
-                            : i === 2
-                              ? "Concert"
-                              : "Workshop"}
-                        </p>
-                        <h3 className="mt-2 text-xl font-semibold text-gray-900 dark:text-white">
-                          Sample Event {i}
-                        </h3>
-                        <p className="mt-3 text-base text-gray-500 dark:text-gray-300">
-                          This is a sample event description. In a real
-                          application, this would show actual event details.
-                        </p>
-                      </div>
-                      <div className="mt-6">
-                        <Link href={`/events/${i}`}>
-                          <Button>View Details</Button>
-                        </Link>
-                      </div>
-                    </div>
-                  </div>
-                </BackgroundGradient>
-              ))}
-            </div>
+            <FeaturedEvents />
             <div className="mt-12 text-center">
               <Link href="/events">
                 <Button variant="outline">View All Events</Button>

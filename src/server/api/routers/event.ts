@@ -72,6 +72,94 @@ const searchEventsOutputSchema = z.object({
 });
 
 export const eventRouter = createTRPCRouter({
+  // Get featured events for home page
+  getFeaturedEvents: publicProcedure.query(async ({ ctx }) => {
+    // Get events that are:
+    // 1. Published
+    // 2. Have good registration rates or are recent
+    // 3. Are upcoming (not past events)
+    const currentDate = new Date();
+    
+    const featuredEvents = await ctx.db
+      .select({
+        id: events.id,
+        name: events.name,
+        description: events.description,
+        startDate: events.startDate,
+        endDate: events.endDate,
+        location: events.location,
+        type: events.type,
+        generalTicketPrice: events.generalTicketPrice,
+        vipTicketPrice: events.vipTicketPrice,
+        maxAttendees: events.maxAttendees,
+        status: events.status,
+        createdAt: events.createdAt,
+        registrationCount: count(registrations.id),
+      })
+      .from(events)
+      .leftJoin(
+        registrations,
+        and(
+          eq(events.id, registrations.eventId),
+          eq(registrations.status, "confirmed")
+        )
+      )
+      .where(
+        and(
+          eq(events.status, "published"),
+          gte(events.startDate, currentDate)
+        )
+      )
+      .groupBy(events.id)
+      .orderBy(
+        desc(count(registrations.id)), // Most popular events first
+        desc(events.createdAt) // Then newest events
+      )
+      .limit(6);
+
+    // Add calculated fields and check user registration status
+    const eventsWithCalculatedFields = await Promise.all(
+      featuredEvents.map(async (event) => {
+        const registrationCount = Number(event.registrationCount);
+        const isSoldOut = registrationCount >= event.maxAttendees;
+        const availableSpots = event.maxAttendees - registrationCount;
+
+        // Check if current user is already registered (if authenticated)
+        let userRegistration = null;
+        if (ctx.userId) {
+          const userRegResult = await ctx.db
+            .select()
+            .from(registrations)
+            .where(
+              and(
+                eq(registrations.eventId, event.id),
+                eq(registrations.userId, ctx.userId),
+                // Include all statuses except refunded to prevent multiple registrations
+                or(
+                  eq(registrations.status, "pending"),
+                  eq(registrations.status, "confirmed"),
+                  eq(registrations.status, "cancelled")
+                )
+              )
+            )
+            .limit(1);
+          
+          userRegistration = userRegResult[0] || null;
+        }
+
+        return {
+          ...event,
+          registrationCount,
+          isSoldOut,
+          availableSpots,
+          userRegistration,
+        };
+      })
+    );
+
+    return eventsWithCalculatedFields;
+  }),
+
   // Get all events with filtering options
   list: publicProcedure
     .input(
@@ -162,7 +250,7 @@ export const eventRouter = createTRPCRouter({
 
   // Get event details by ID
   byId: publicProcedure
-    .input(z.object({ id: z.number() }))
+    .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
       const result = await ctx.db
         .select()
@@ -170,7 +258,54 @@ export const eventRouter = createTRPCRouter({
         .where(eq(events.id, input.id))
         .limit(1);
 
-      return result[0] ?? null;
+      const event = result[0];
+      if (!event) return null;
+
+      // Get current registration count
+      const currentRegistrations = await ctx.db
+        .select({ count: count() })
+        .from(registrations)
+        .where(
+          and(
+            eq(registrations.eventId, input.id),
+            eq(registrations.status, "confirmed")
+          )
+        );
+
+      const currentCount = currentRegistrations[0]?.count ?? 0;
+      const isSoldOut = currentCount >= event.maxAttendees;
+      const availableSpots = event.maxAttendees - currentCount;
+
+      // Check if current user is already registered (if authenticated)
+      let userRegistration = null;
+      if (ctx.userId) {
+        const userRegResult = await ctx.db
+          .select()
+          .from(registrations)
+          .where(
+            and(
+              eq(registrations.eventId, input.id),
+              eq(registrations.userId, ctx.userId),
+              // Include all statuses except refunded to prevent multiple registrations
+              or(
+                eq(registrations.status, "pending"),
+                eq(registrations.status, "confirmed"),
+                eq(registrations.status, "cancelled")
+              )
+            )
+          )
+          .limit(1);
+        
+        userRegistration = userRegResult[0] || null;
+      }
+
+      return {
+        ...event,
+        currentRegistrations: currentCount,
+        isSoldOut,
+        availableSpots,
+        userRegistration,
+      };
     }),
 
   // Get upcoming events (limit to next 5 events)
@@ -288,7 +423,7 @@ export const eventRouter = createTRPCRouter({
 
   // Get event by ID with compatibility mapping (from SCRUM-276 branch)
   getEventById: publicProcedure
-    .input(z.object({ id: z.number() }))
+    .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
       const result = await ctx.db
         .select()
@@ -309,7 +444,7 @@ export const eventRouter = createTRPCRouter({
     .input(
       z.object({
         sessionId: z.string(),
-        eventId: z.number(),
+        eventId: z.string(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -390,6 +525,16 @@ export const eventRouter = createTRPCRouter({
 
         console.log("Successfully generated QR code");
 
+        // Get customer details from Stripe (name and email will be available after checkout)
+        let customerDetails = null;
+        if (session.customer && typeof session.customer === "object") {
+          customerDetails = session.customer;
+        } else if (typeof session.customer === "string") {
+          customerDetails = await stripe.customers.retrieve(session.customer);
+        }
+
+        console.log("Customer details from Stripe:", customerDetails);
+
         // Create registration
         console.log("Creating registration with data:", {
           userId,
@@ -407,6 +552,10 @@ export const eventRouter = createTRPCRouter({
             status: "confirmed",
             paymentStatus: "completed",
             totalAmount: session.amount_total ? session.amount_total / 100 : 0,
+            // Event-specific data from metadata
+            dietaryRequirements: session.metadata?.dietaryRequirements || null,
+            specialNeeds: session.metadata?.specialNeeds || null,
+            emergencyContact: session.metadata?.emergencyContact || null,
             createdAt: new Date(),
             updatedAt: new Date(),
           })
@@ -469,8 +618,12 @@ export const eventRouter = createTRPCRouter({
           },
         });
 
-        // Ensure event, user, registration, and ticket are defined before proceeding to email
-        if (event && user?.email && registration && ticket && ticket.qrCode) {
+        // Get customer email and name from Stripe or fallback to user data
+        const customerEmail = (customerDetails && "email" in customerDetails && customerDetails.email) || user?.email;
+        const customerName = (customerDetails && "name" in customerDetails && customerDetails.name) || user?.name || "User";
+
+        // Ensure event, email, registration, and ticket are defined before proceeding to email
+        if (event && customerEmail && registration && ticket && ticket.qrCode) {
           const emailSubject = `Your Ticket for ${event.name}!`;
 
           // Prepare QR code for CID embedding
@@ -484,7 +637,7 @@ export const eventRouter = createTRPCRouter({
           };
 
           const emailHtml = `
-            <h1>Thank you for your purchase, ${user.name ?? "User"}!</h1>
+            <h1>Thank you for your purchase, ${customerName}!</h1>
             <p>You have successfully registered for the event: <strong>${event.name}</strong>.</p>
             <p><strong>Ticket Details:</strong></p>
             <ul>
@@ -500,7 +653,7 @@ export const eventRouter = createTRPCRouter({
             <p>We look forward to seeing you there!</p>
           `;
           const emailText = `
-            Thank you for your purchase, ${user.name ?? "User"}!
+            Thank you for your purchase, ${customerName}!
             You have successfully registered for the event: ${event.name}.
             Ticket Details:
             - Ticket Number: ${ticket.ticketNumber}
@@ -513,18 +666,18 @@ export const eventRouter = createTRPCRouter({
 
           try {
             await sendEmail({
-              to: user.email,
+              to: customerEmail,
               subject: emailSubject,
               html: emailHtml,
               text: emailText,
               attachments: [qrAttachment],
             });
             console.log(
-              `Confirmation email sent to ${user.email} for event ${event.id}`,
+              `Confirmation email sent to ${customerEmail} for event ${event.id}`,
             );
           } catch (emailError) {
             console.error(
-              `Failed to send confirmation email to ${user.email}: `,
+              `Failed to send confirmation email to ${customerEmail}: `,
               emailError,
             );
             // Decide if you want to throw an error or just log it
@@ -549,8 +702,13 @@ export const eventRouter = createTRPCRouter({
         // Return ticket details including the QR code data URL
         return {
           ticketId: ticket.ticketNumber,
+          attendeeName: customerName,
+          attendeeEmail: customerEmail || "Unknown",
           eventName: event.name,
+          eventDate: event.startDate.toISOString(),
+          eventLocation: event.location,
           ticketType: registration.ticketType,
+          ticketPrice: Number(registration.totalAmount),
           purchaseDate: registration.createdAt,
           qrCodeUrl: ticket.qrCode,
         };
@@ -572,11 +730,16 @@ export const eventRouter = createTRPCRouter({
       }
     }),
 
-  createPaymentSession: publicProcedure
+  createPaymentSession: protectedProcedure
     .input(
       z.object({
-        eventId: z.number(),
+        eventId: z.string(),
         ticketType: z.enum(["general", "vip"]),
+        eventSpecificData: z.object({
+          dietaryRequirements: z.string().optional(),
+          specialNeeds: z.string().optional(),
+          emergencyContact: z.string().optional(),
+        }).optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -587,6 +750,53 @@ export const eventRouter = createTRPCRouter({
 
       if (!event) {
         throw new Error("Event not found");
+      }
+
+      // Check if event is published
+      if (event.status !== "published") {
+        throw new Error("Event is not available for registration");
+      }
+
+      // Check if user is already registered for this event
+      const existingRegistration = await ctx.db
+        .select()
+        .from(registrations)
+        .where(
+          and(
+            eq(registrations.eventId, input.eventId),
+            eq(registrations.userId, ctx.userId),
+            // Check for any active registration (not refunded)
+            or(
+              eq(registrations.status, "pending"),
+              eq(registrations.status, "confirmed"),
+              eq(registrations.status, "cancelled")
+            )
+          )
+        )
+        .limit(1);
+
+      if (existingRegistration.length > 0) {
+        const reg = existingRegistration[0]!;
+        throw new Error(
+          `You already have a ${reg.status} registration for this event. Please check your dashboard or contact support if you need assistance.`
+        );
+      }
+
+      // Check current registration count to prevent overselling
+      const currentRegistrations = await ctx.db
+        .select({ count: count() })
+        .from(registrations)
+        .where(
+          and(
+            eq(registrations.eventId, input.eventId),
+            eq(registrations.status, "confirmed")
+          )
+        );
+
+      const currentCount = currentRegistrations[0]?.count ?? 0;
+
+      if (currentCount >= event.maxAttendees) {
+        throw new Error("Event is sold out");
       }
 
       // Calculate price based on ticket type
@@ -626,6 +836,17 @@ export const eventRouter = createTRPCRouter({
         metadata: {
           eventId: event.id.toString(),
           ticketType: input.ticketType,
+          ...(input.eventSpecificData && {
+            ...(input.eventSpecificData.dietaryRequirements && {
+              dietaryRequirements: input.eventSpecificData.dietaryRequirements,
+            }),
+            ...(input.eventSpecificData.specialNeeds && {
+              specialNeeds: input.eventSpecificData.specialNeeds,
+            }),
+            ...(input.eventSpecificData.emergencyContact && {
+              emergencyContact: input.eventSpecificData.emergencyContact,
+            }),
+          }),
         },
       });
 
@@ -660,7 +881,7 @@ export const eventRouter = createTRPCRouter({
       );
 
     const totalRegistrations = registrationsResult[0]?.count ?? 0;
-    const totalRevenue = registrationsResult[0]?.revenue ?? 0;
+    const totalRevenue = Number(registrationsResult[0]?.revenue ?? 0);
 
     // Get recent registrations
     const recentRegistrations = await ctx.db
@@ -815,7 +1036,7 @@ export const eventRouter = createTRPCRouter({
   updateEvent: protectedProcedure
     .input(
       z.object({
-        id: z.number(),
+        id: z.string(),
         name: z.string().min(3).max(100).optional(),
         description: z.string().min(10).optional(),
         startDate: z.date().optional(),
@@ -889,7 +1110,7 @@ export const eventRouter = createTRPCRouter({
 
   // Delete an event
   deleteEvent: protectedProcedure
-    .input(z.object({ id: z.number() }))
+    .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const userId = ctx.userId;
 
@@ -918,7 +1139,7 @@ export const eventRouter = createTRPCRouter({
 
   // Get details for a specific event (for editing)
   getEventDetails: protectedProcedure
-    .input(z.object({ id: z.number() }))
+    .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
       const userId = ctx.userId;
 
@@ -967,7 +1188,7 @@ export const eventRouter = createTRPCRouter({
   getEventRegistrations: protectedProcedure
     .input(
       z.object({
-        eventId: z.number(),
+        eventId: z.string(),
         status: z
           .enum(["all", "pending", "confirmed", "cancelled", "refunded"])
           .default("all"),
@@ -1025,7 +1246,7 @@ export const eventRouter = createTRPCRouter({
   updateRegistrationStatus: protectedProcedure
     .input(
       z.object({
-        registrationId: z.number(),
+        registrationId: z.string(),
         status: z.enum(["confirmed", "cancelled", "refunded"]),
       }),
     )
@@ -1080,7 +1301,7 @@ export const eventRouter = createTRPCRouter({
 
   // Get registration details
   getRegistrationDetails: protectedProcedure
-    .input(z.object({ registrationId: z.number() }))
+    .input(z.object({ registrationId: z.string() }))
     .query(async ({ ctx, input }) => {
       const userId = ctx.userId;
 
@@ -1142,7 +1363,7 @@ export const eventRouter = createTRPCRouter({
 });
 
 // Helper function to handle event cancellation
-async function handleEventCancellation(ctx: any, eventId: number) {
+async function handleEventCancellation(ctx: any, eventId: string) {
   // Get all confirmed registrations for this event
   const registrationsToCancel = await ctx.db
     .select()

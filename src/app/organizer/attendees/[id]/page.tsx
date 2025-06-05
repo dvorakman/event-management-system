@@ -29,7 +29,7 @@ export default function AttendeeDetailsPage({
   params: { id: string };
 }) {
   const router = useRouter();
-  const registrationId = Number.parseInt(params.id, 10);
+  const registrationId = params.id;
   const [showStatusDialog, setShowStatusDialog] = useState(false);
   const [newStatus, setNewStatus] = useState<
     "confirmed" | "cancelled" | "refunded"

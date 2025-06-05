@@ -23,7 +23,7 @@ type Category = z.infer<typeof categorySchema>;
 
 // Define event type based on the schema
 const eventSchema = z.object({
-  id: z.number(),
+  id: z.string(),
   name: z.string(),
   description: z.string(),
   startDate: z.string().transform((val) => new Date(val)),

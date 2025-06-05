@@ -27,7 +27,7 @@ function EventDetailsLoading() {
 }
 
 // Component to fetch and display event details
-async function EventDetails({ id }: { id: number }) {
+async function EventDetails({ id }: { id: string }) {
   const event = await api.event.byId({ id });
 
   if (!event) {
@@ -96,7 +96,17 @@ async function EventDetails({ id }: { id: number }) {
                   </span>
                 </p>
                 <p className="text-gray-300">
-                  <span className="font-medium text-white">Max Attendees:</span> {event.maxAttendees}
+                  <span className="font-medium text-white">Capacity:</span> {event.currentRegistrations}/{event.maxAttendees}
+                  {event.isSoldOut && (
+                    <span className="ml-2 px-2 py-1 bg-red-600 text-white text-xs rounded-full">
+                      SOLD OUT
+                    </span>
+                  )}
+                  {!event.isSoldOut && event.availableSpots <= 10 && event.availableSpots > 0 && (
+                    <span className="ml-2 px-2 py-1 bg-orange-600 text-white text-xs rounded-full">
+                      {event.availableSpots} left
+                    </span>
+                  )}
                 </p>
               </div>
             </div>
@@ -113,11 +123,14 @@ async function EventDetails({ id }: { id: number }) {
                   </p>
                 </div>
                 <div className="rounded-lg bg-gray-700 p-4">
-                  <h3 className="mb-2 font-semibold text-white">VIP Ticket</h3>
-                  <p className="text-2xl font-bold text-purple-400 mb-2">
+                  <h3 className="mb-2 font-semibold text-white">VIP/Premium Ticket</h3>
+                  <p className="text-2xl font-bold text-purple-400 mb-3">
                     ${Number(event.vipTicketPrice).toFixed(2)}
                   </p>
-                  <p className="text-sm text-gray-300">{event.vipPerks}</p>
+                  <div className="text-sm text-gray-300">
+                    <p className="font-medium text-purple-300 mb-2">Includes:</p>
+                    <p className="leading-relaxed">{event.vipPerks}</p>
+                  </div>
                 </div>
               </div>
             </div>
@@ -133,7 +146,17 @@ async function EventDetails({ id }: { id: number }) {
           {event.status === "published" && (
             <div className="flex gap-4">
               <Suspense fallback={<Skeleton className="h-10 w-32" />}>
-                <EventActionButtons eventId={event.id} />
+                <EventActionButtons 
+                  status={event.status}
+                  eventId={event.id}
+                  eventName={event.name}
+                  generalPrice={Number(event.generalTicketPrice)}
+                  vipPrice={Number(event.vipTicketPrice)}
+                  vipPerks={event.vipPerks}
+                  isSoldOut={event.isSoldOut}
+                  availableSpots={event.availableSpots}
+                  userRegistration={event.userRegistration}
+                />
               </Suspense>
             </div>
           )}
@@ -178,9 +201,12 @@ interface EventPageProps {
 }
 
 export default async function EventPage({ params }: EventPageProps) {
-  const eventId = parseInt(params.id);
+  const resolvedParams = await params;
+  const eventId = resolvedParams.id;
 
-  if (isNaN(eventId)) {
+  // Basic validation that it's a valid UUID format
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (!uuidRegex.test(eventId)) {
     notFound();
   }
 
@@ -195,9 +221,12 @@ export default async function EventPage({ params }: EventPageProps) {
 export async function generateMetadata({
   params,
 }: EventPageProps): Promise<Metadata> {
-  const eventId = parseInt(params.id);
+  const resolvedParams = await params;
+  const eventId = resolvedParams.id;
   
-  if (isNaN(eventId)) {
+  // Basic validation that it's a valid UUID format
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (!uuidRegex.test(eventId)) {
     return {
       title: "Event Not Found",
     };
