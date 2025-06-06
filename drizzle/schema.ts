@@ -83,6 +83,9 @@ export const eventManagementSystemRegistration = pgTable("event-management-syste
 	status: text().default('pending').notNull(),
 	paymentStatus: text("payment_status").default('pending').notNull(),
 	totalAmount: numeric("total_amount", { precision: 10, scale:  2 }).notNull(),
+	dietaryRequirements: text("dietary_requirements"),
+	specialNeeds: text("special_needs"),
+	emergencyContact: text("emergency_contact"),
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).default(sql`CURRENT_TIMESTAMP`).notNull(),
 	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }),
 }, (table) => [

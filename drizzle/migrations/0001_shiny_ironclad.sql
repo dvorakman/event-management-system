@@ -1,1 +1,0 @@
-DROP TABLE "event-management-system_post" CASCADE;
