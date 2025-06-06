@@ -4,7 +4,7 @@ import Link from "next/link";
 
 type EventCardProps = {
   event: {
-    id: number;
+    id: string;
     name: string;
     description?: string | null;
     startDate: Date;

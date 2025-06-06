@@ -2,11 +2,14 @@
 
 import Link from "next/link";
 import { SignedIn, SignedOut, SignInButton } from "@clerk/nextjs";
-// import { HydrateClient } from "~/trpc/server"; // Keep if still needed, else remove. Was in original, removed in previous step.
-import { Button } from "~/components/ui/button"; // Your existing Button component
+
+import { HydrateClient } from "~/trpc/server";
+import { Button } from "~/components/ui/button";
+import { FeaturedEvents } from "~/components/event/FeaturedEvents";
 import dynamic from "next/dynamic";
 // import { InteractiveHoverButton } from "~/components/ui/interactive-hover-button";
-// import { BackgroundGradient } from "~/components/ui/background-gradient"; // Was in original, can be added back if needed for event cards etc.
+// import { Globe } from "~/components/ui/globe";
+// import { BackgroundGradient } from "~/components/ui/background-gradient";
 // import { BackgroundBoxes } from "~/components/ui/background-boxes";
 import { motion } from "framer-motion";
 import { TypeAnimation } from "react-type-animation";
@@ -106,8 +109,20 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Divider */}
-      <div className="h-24 bg-background" />
+      {/* Featured Events Section */}
+      <section className="bg-gray-50 py-16 dark:bg-gray-900">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+          <h2 className="mb-12 text-center text-3xl font-bold tracking-tight text-gray-900 dark:text-white sm:text-4xl">
+            Featured Events
+          </h2>
+          <FeaturedEvents />
+          <div className="mt-12 text-center">
+            <Link href="/events">
+              <Button variant="outline">View All Events</Button>
+            </Link>
+          </div>
+        </div>
+      </section>
 
       {/* Why Choose Our Platform */}
       <section className="bg-background py-24">

@@ -33,7 +33,7 @@ export default function EventDetailsPage({
   params: { id: string };
 }) {
   const router = useRouter();
-  const eventId = parseInt(params.id, 10);
+  const eventId = params.id;
   const [activeTab, setActiveTab] = useState("overview");
   const [isLoading, setIsLoading] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -645,7 +645,7 @@ export default function EventDetailsPage({
   );
 }
 
-function RegistrationsList({ eventId }: { eventId: number }) {
+function RegistrationsList({ eventId }: { eventId: string }) {
   const [statusFilter, setStatusFilter] = useState("all");
 
   const { data: registrations, isLoading } =
@@ -670,7 +670,7 @@ function RegistrationsList({ eventId }: { eventId: number }) {
     },
   });
 
-  const handleStatusChange = (registrationId: number, status: string) => {
+  const handleStatusChange = (registrationId: string, status: string) => {
     updateStatusMutation.mutate({
       registrationId,
       status: status as "confirmed" | "cancelled" | "refunded",

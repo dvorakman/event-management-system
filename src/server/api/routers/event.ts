@@ -79,6 +79,94 @@ const searchEventsOutputSchema = z.object({
 });
 
 export const eventRouter = createTRPCRouter({
+  // Get featured events for home page
+  getFeaturedEvents: publicProcedure.query(async ({ ctx }) => {
+    // Get events that are:
+    // 1. Published
+    // 2. Have good registration rates or are recent
+    // 3. Are upcoming (not past events)
+    const currentDate = new Date();
+    
+    const featuredEvents = await ctx.db
+      .select({
+        id: events.id,
+        name: events.name,
+        description: events.description,
+        startDate: events.startDate,
+        endDate: events.endDate,
+        location: events.location,
+        type: events.type,
+        generalTicketPrice: events.generalTicketPrice,
+        vipTicketPrice: events.vipTicketPrice,
+        maxAttendees: events.maxAttendees,
+        status: events.status,
+        createdAt: events.createdAt,
+        registrationCount: count(registrations.id),
+      })
+      .from(events)
+      .leftJoin(
+        registrations,
+        and(
+          eq(events.id, registrations.eventId),
+          eq(registrations.status, "confirmed")
+        )
+      )
+      .where(
+        and(
+          eq(events.status, "published"),
+          gte(events.startDate, currentDate)
+        )
+      )
+      .groupBy(events.id)
+      .orderBy(
+        desc(count(registrations.id)), // Most popular events first
+        desc(events.createdAt) // Then newest events
+      )
+      .limit(6);
+
+    // Add calculated fields and check user registration status
+    const eventsWithCalculatedFields = await Promise.all(
+      featuredEvents.map(async (event) => {
+        const registrationCount = Number(event.registrationCount);
+        const isSoldOut = registrationCount >= event.maxAttendees;
+        const availableSpots = event.maxAttendees - registrationCount;
+
+        // Check if current user is already registered (if authenticated)
+        let userRegistration = null;
+        if (ctx.userId) {
+          const userRegResult = await ctx.db
+            .select()
+            .from(registrations)
+            .where(
+              and(
+                eq(registrations.eventId, event.id),
+                eq(registrations.userId, ctx.userId),
+                // Include all statuses except refunded to prevent multiple registrations
+                or(
+                  eq(registrations.status, "pending"),
+                  eq(registrations.status, "confirmed"),
+                  eq(registrations.status, "cancelled")
+                )
+              )
+            )
+            .limit(1);
+          
+          userRegistration = userRegResult[0] || null;
+        }
+
+        return {
+          ...event,
+          registrationCount,
+          isSoldOut,
+          availableSpots,
+          userRegistration,
+        };
+      })
+    );
+
+    return eventsWithCalculatedFields;
+  }),
+
   // Get all events with filtering options
   list: publicProcedure
     .input(
@@ -183,7 +271,54 @@ export const eventRouter = createTRPCRouter({
         .where(eq(events.id, input.id))
         .limit(1);
 
-      return result[0] ?? null;
+      const event = result[0];
+      if (!event) return null;
+
+      // Get current registration count
+      const currentRegistrations = await ctx.db
+        .select({ count: count() })
+        .from(registrations)
+        .where(
+          and(
+            eq(registrations.eventId, input.id),
+            eq(registrations.status, "confirmed")
+          )
+        );
+
+      const currentCount = currentRegistrations[0]?.count ?? 0;
+      const isSoldOut = currentCount >= event.maxAttendees;
+      const availableSpots = event.maxAttendees - currentCount;
+
+      // Check if current user is already registered (if authenticated)
+      let userRegistration = null;
+      if (ctx.userId) {
+        const userRegResult = await ctx.db
+          .select()
+          .from(registrations)
+          .where(
+            and(
+              eq(registrations.eventId, input.id),
+              eq(registrations.userId, ctx.userId),
+              // Include all statuses except refunded to prevent multiple registrations
+              or(
+                eq(registrations.status, "pending"),
+                eq(registrations.status, "confirmed"),
+                eq(registrations.status, "cancelled")
+              )
+            )
+          )
+          .limit(1);
+        
+        userRegistration = userRegResult[0] || null;
+      }
+
+      return {
+        ...event,
+        currentRegistrations: currentCount,
+        isSoldOut,
+        availableSpots,
+        userRegistration,
+      };
     }),
 
   // Get upcoming events (limit to next 5 events)
@@ -301,7 +436,7 @@ export const eventRouter = createTRPCRouter({
 
   // Get event by ID with compatibility mapping (from SCRUM-276 branch)
   getEventById: publicProcedure
-    .input(z.object({ id: z.number() }))
+    .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
       const result = await ctx.db
         .select()
@@ -334,6 +469,258 @@ export const eventRouter = createTRPCRouter({
         });
       }
 
+      try {
+        // Retrieve the checkout session from Stripe
+        const session = await stripe.checkout.sessions.retrieve(input.sessionId);
+
+        console.log("Retrieved Stripe session:", {
+          sessionId: session.id,
+          paymentStatus: session.payment_status,
+          metadata: session.metadata,
+          total: session.amount_total,
+        });
+
+        if (session.payment_status !== "paid") {
+          throw new Error(`Invalid payment status: ${session.payment_status}`);
+        }
+
+        // Get event details
+        const event = await ctx.db.query.events.findFirst({
+          where: eq(events.id, input.eventId),
+        });
+
+        console.log("Retrieved event details:", {
+          eventId: event?.id,
+          eventName: event?.name,
+          found: !!event,
+        });
+
+        if (!event) {
+          throw new Error(`Event not found with ID: ${input.eventId}`);
+        }
+
+        // Generate unique ticket number
+        const ticketNumber = nanoid(10).toUpperCase();
+        console.log("Generated ticket number:", ticketNumber);
+
+        // Generate QR code
+        const qrCodeData = await QRCode.toDataURL(
+          JSON.stringify({
+            ticketNumber,
+            eventId: input.eventId,
+            sessionId: input.sessionId,
+          }),
+        ).catch((error) => {
+          console.error("QR code generation error:", error);
+          throw new Error("Failed to generate QR code");
+        });
+
+        console.log("Successfully generated QR code");
+
+        // Get customer details from Stripe (name and email will be available after checkout)
+        let customerDetails = null;
+        if (session.customer && typeof session.customer === "object") {
+          customerDetails = session.customer;
+        } else if (typeof session.customer === "string") {
+          customerDetails = await stripe.customers.retrieve(session.customer);
+        }
+
+        console.log("Customer details from Stripe:", customerDetails);
+
+        // Create registration
+        console.log("Creating registration with data:", {
+          userId,
+          eventId: input.eventId,
+          ticketType: session.metadata?.ticketType,
+          amount: session.amount_total ? session.amount_total / 100 : 0,
+        });
+
+        const registrationRows = await ctx.db
+          .insert(registrations)
+          .values({
+            userId,
+            eventId: input.eventId,
+            ticketType: session.metadata?.ticketType as "general" | "vip",
+            status: "confirmed",
+            paymentStatus: "completed",
+            totalAmount: session.amount_total ? session.amount_total / 100 : 0,
+            // Event-specific data from metadata
+            dietaryRequirements: session.metadata?.dietaryRequirements || null,
+            specialNeeds: session.metadata?.specialNeeds || null,
+            emergencyContact: session.metadata?.emergencyContact || null,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          })
+          .returning()
+          .catch((error) => {
+            console.error("Registration creation error:", error);
+            if (error instanceof Error) {
+              throw new Error(
+                `Failed to create registration: ${error.message}`,
+              );
+            }
+            throw new Error(
+              "Failed to create registration due to an unknown error.",
+            );
+          });
+
+        if (!registrationRows || registrationRows.length === 0) {
+          throw new Error("Registration creation failed or no data returned.");
+        }
+        const registration = registrationRows[0];
+
+        console.log("Created registration:", registration);
+
+        // Create ticket
+        console.log("Creating ticket for registration:", registration?.id);
+        const ticketRows = await ctx.db
+          .insert(tickets)
+          .values({
+            registrationId: registration.id,
+            ticketNumber,
+            qrCode: qrCodeData,
+            isUsed: false,
+            createdAt: new Date(),
+          })
+          .returning()
+          .catch((error) => {
+            console.error("Ticket creation error:", error);
+            if (error instanceof Error) {
+              throw new Error(`Failed to create ticket: ${error.message}`);
+            }
+            throw new Error("Failed to create ticket due to an unknown error.");
+          });
+
+        if (!ticketRows || ticketRows.length === 0) {
+          throw new Error("Ticket creation failed or no data returned.");
+        }
+        const ticket = ticketRows[0];
+
+        console.log("Successfully created ticket:", {
+          ticketId: ticket?.ticketNumber,
+          registrationId: ticket?.registrationId,
+        });
+
+        // Fetch user's email
+        const user = await ctx.db.query.users.findFirst({
+          where: eq(users.id, userId),
+          columns: {
+            email: true,
+            name: true, // Fetch name for personalization
+          },
+        });
+
+        // Get customer email and name from Stripe or fallback to user data
+        const customerEmail = (customerDetails && "email" in customerDetails && customerDetails.email) || user?.email;
+        const customerName = (customerDetails && "name" in customerDetails && customerDetails.name) || user?.name || "User";
+
+        // Ensure event, email, registration, and ticket are defined before proceeding to email
+        if (event && customerEmail && registration && ticket && ticket.qrCode) {
+          const emailSubject = `Your Ticket for ${event.name}!`;
+
+          // Prepare QR code for CID embedding
+          const qrCodeBase64 = ticket.qrCode.split(",")[1]; // Get base64 part after "data:image/png;base64,"
+          const qrAttachment = {
+            content: qrCodeBase64 ?? "", // Ensure content is not undefined
+            filename: "qrcode.png",
+            type: "image/png",
+            disposition: "inline" as const, // Use "as const" for literal type
+            content_id: "ticketQRCode", // This ID will be used in the img src
+          };
+
+          const emailHtml = `
+            <h1>Thank you for your purchase, ${customerName}!</h1>
+            <p>You have successfully registered for the event: <strong>${event.name}</strong>.</p>
+            <p><strong>Ticket Details:</strong></p>
+            <ul>
+              <li>Ticket Number: ${ticket.ticketNumber}</li>
+              <li>Ticket Type: ${registration.ticketType}</li>
+              <li>Purchase Date: ${registration.createdAt.toLocaleDateString()}</li>
+              <li>Event Date: ${event.startDate.toLocaleDateString()}</li>
+            </ul>
+            <p>Your QR code for entry:</p>
+            <div style="margin: 10px 0;">
+              <img src="cid:ticketQRCode" alt="Your Ticket QR Code" style="width: 200px; height: 200px; display: block;" />
+            </div>
+            <p>We look forward to seeing you there!</p>
+          `;
+          const emailText = `
+            Thank you for your purchase, ${customerName}!
+            You have successfully registered for the event: ${event.name}.
+            Ticket Details:
+            - Ticket Number: ${ticket.ticketNumber}
+            - Ticket Type: ${registration.ticketType}
+            - Purchase Date: ${registration.createdAt.toLocaleDateString()}
+            - Event Date: ${event.startDate.toLocaleDateString()}
+            Your QR code is attached to this email.
+            We look forward to seeing you there!
+          `;
+
+          try {
+            await sendEmail({
+              to: customerEmail,
+              subject: emailSubject,
+              html: emailHtml,
+              text: emailText,
+              attachments: [qrAttachment],
+            });
+            console.log(
+              `Confirmation email sent to ${customerEmail} for event ${event.id}`,
+            );
+          } catch (emailError) {
+            console.error(
+              `Failed to send confirmation email to ${customerEmail}: `,
+              emailError,
+            );
+            // Decide if you want to throw an error or just log it
+            // For now, we'll just log it and not interrupt the ticket return
+          }
+        } else {
+          console.warn(
+            `User email not found for userId: ${userId}. Cannot send confirmation email. Or other critical data missing.`,
+          );
+        }
+
+        // Final check before returning, ensuring essential objects are defined
+        if (!event || !registration || !ticket) {
+          console.error(
+            "Critical data missing for return (event, registration, or ticket undefined).",
+          );
+          throw new Error(
+            "Failed to process payment fully, critical data missing.",
+          );
+        }
+
+        // Return ticket details including the QR code data URL
+        return {
+          ticketId: ticket.ticketNumber,
+          attendeeName: customerName,
+          attendeeEmail: customerEmail || "Unknown",
+          eventName: event.name,
+          eventDate: event.startDate.toISOString(),
+          eventLocation: event.location,
+          ticketType: registration.ticketType,
+          ticketPrice: Number(registration.totalAmount),
+          purchaseDate: registration.createdAt,
+          qrCodeUrl: ticket.qrCode,
+        };
+      } catch (error) {
+        console.error("Detailed verification error:", {
+          error: error instanceof Error ? error.message : "Unknown error",
+          stack: error instanceof Error ? error.stack : undefined,
+          input: {
+            sessionId: input.sessionId,
+            eventId: input.eventId,
+          },
+        });
+
+        // Re-throw the error with the original message if it exists
+        if (error instanceof Error) {
+          throw new Error(error.message);
+        }
+        throw new Error("Failed to verify payment and create ticket");
+      }
+
       const registration = await ctx.db
         .select()
         .from(registrations)
@@ -364,11 +751,16 @@ export const eventRouter = createTRPCRouter({
       return { success: true };
     }),
 
-  createPaymentSession: publicProcedure
+  createPaymentSession: protectedProcedure
     .input(
       z.object({
         eventId: z.string(),
         ticketType: z.enum(["general", "vip"]),
+        eventSpecificData: z.object({
+          dietaryRequirements: z.string().optional(),
+          specialNeeds: z.string().optional(),
+          emergencyContact: z.string().optional(),
+        }).optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -400,6 +792,53 @@ export const eventRouter = createTRPCRouter({
         });
       }
 
+      // Check if user is already registered for this event
+      const existingRegistration = await ctx.db
+        .select()
+        .from(registrations)
+        .where(
+          and(
+            eq(registrations.eventId, input.eventId),
+            eq(registrations.userId, ctx.userId),
+            // Check for any active registration (not refunded)
+            or(
+              eq(registrations.status, "pending"),
+              eq(registrations.status, "confirmed"),
+              eq(registrations.status, "cancelled")
+            )
+          )
+        )
+        .limit(1);
+
+      if (existingRegistration.length > 0) {
+        const reg = existingRegistration[0]!;
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: `You already have a ${reg.status} registration for this event. Please check your dashboard or contact support if you need assistance.`,
+        });
+      }
+
+      // Check current registration count to prevent overselling
+      const currentRegistrations = await ctx.db
+        .select({ count: count() })
+        .from(registrations)
+        .where(
+          and(
+            eq(registrations.eventId, input.eventId),
+            eq(registrations.status, "confirmed")
+          )
+        );
+
+      const currentCount = currentRegistrations[0]?.count ?? 0;
+
+      if (currentCount >= event[0].maxAttendees) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Event is sold out",
+        });
+      }
+
+      // Calculate price based on ticket type
       const price =
         input.ticketType === "vip"
           ? event[0].vipTicketPrice
@@ -413,6 +852,17 @@ export const eventRouter = createTRPCRouter({
           eventId: input.eventId,
           ticketType: input.ticketType,
           totalAmount: price,
+          ...(input.eventSpecificData && {
+            ...(input.eventSpecificData.dietaryRequirements && {
+              dietaryRequirements: input.eventSpecificData.dietaryRequirements,
+            }),
+            ...(input.eventSpecificData.specialNeeds && {
+              specialNeeds: input.eventSpecificData.specialNeeds,
+            }),
+            ...(input.eventSpecificData.emergencyContact && {
+              emergencyContact: input.eventSpecificData.emergencyContact,
+            }),
+          }),
         })
         .returning();
 

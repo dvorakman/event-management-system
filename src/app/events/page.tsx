@@ -27,6 +27,164 @@ import {
 } from "~/components/ui/popover";
 import { CalendarIcon } from "lucide-react";
 import { cn } from "~/lib/utils";
+import { z } from "zod";
+
+// Define category type based on the backend schema
+const categorySchema = z.enum(["conference", "music_concert", "networking"]);
+type Category = z.infer<typeof categorySchema>;
+
+// Define event type based on the schema
+const eventSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  description: z.string(),
+  startDate: z.string().transform((val) => new Date(val)),
+  endDate: z.string().transform((val) => new Date(val)),
+  location: z.string(),
+  type: z.enum(["conference", "music_concert", "networking"]),
+  generalTicketPrice: z.string().transform(Number),
+  vipTicketPrice: z.string().transform(Number),
+  vipPerks: z.string(),
+  maxAttendees: z.number(),
+  organizerId: z.string(),
+  status: z.enum(["draft", "published", "cancelled", "completed"]),
+  createdAt: z.string().transform((val) => new Date(val)),
+  updatedAt: z.string().transform((val) => new Date(val)),
+});
+
+type Event = z.infer<typeof eventSchema>;
+
+// Define a type for the filter state matching the API input expectation
+type EventFilters = {
+    query?: string;
+    category?: Category;
+    dateFrom?: Date;
+    dateTo?: Date;
+    location?: string;
+    priceMin?: number;
+    priceMax?: number;
+};
+
+// Search/Filter form component
+function SearchFilters({
+    onSearch,
+}: {
+    onSearch: (filters: EventFilters) => void;
+}) {
+    const [query, setQuery] = useState('');
+    const [category, setCategory] = useState<Category | undefined>(undefined);
+    const [dateFrom, setDateFrom] = useState<string>('');
+    const [dateTo, setDateTo] = useState<string>('');
+    const [location, setLocation] = useState('');
+    const [priceMin, setPriceMin] = useState<number | undefined>(undefined);
+    const [priceMax, setPriceMax] = useState<number | undefined>(undefined);
+
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        onSearch({
+            query: query || undefined,
+            category: category || undefined,
+            dateFrom: dateFrom ? new Date(dateFrom) : undefined,
+            dateTo: dateTo ? new Date(dateTo) : undefined,
+            location: location || undefined,
+            priceMin: priceMin || undefined,
+            priceMax: priceMax || undefined,
+        });
+    };
+
+    return (
+        <div className="mb-8 rounded-lg bg-gray-800 p-6 shadow-md">
+            <h2 className="mb-4 text-xl font-semibold text-white">Search & Filter Events</h2>
+            <form onSubmit={handleSubmit}>
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                    <div>
+                        <Label htmlFor="search" className="text-white">Search Keywords</Label>
+                        <Input
+                            id="search"
+                            placeholder="Search by keyword..."
+                            value={query}
+                            onChange={(e) => setQuery(e.target.value)}
+                            className="bg-gray-700 text-white border-gray-600"
+                        />
+                    </div>
+                    <div>
+                        <Label htmlFor="category" className="text-white">Category</Label>
+                        <Select value={category ?? 'all'} onValueChange={(value) => setCategory(value === 'all' ? undefined : value as Category)}>
+                            <SelectTrigger className="bg-gray-700 text-white border-gray-600">
+                                <SelectValue placeholder="All Categories" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">All Categories</SelectItem>
+                                <SelectItem value="conference">Conference</SelectItem>
+                                <SelectItem value="music_concert">Music Concert</SelectItem>
+                                <SelectItem value="networking">Networking Session</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    <div>
+                        <Label htmlFor="location" className="text-white">Location</Label>
+                        <Input
+                            id="location"
+                            placeholder="Location..."
+                            value={location}
+                            onChange={(e) => setLocation(e.target.value)}
+                            className="bg-gray-700 text-white border-gray-600"
+                        />
+                    </div>
+                    <div>
+                        <Label htmlFor="dateFrom" className="text-white">From Date</Label>
+                        <Input
+                            id="dateFrom"
+                            type="date"
+                            value={dateFrom}
+                            onChange={(e) => setDateFrom(e.target.value)}
+                            className="bg-gray-700 text-white border-gray-600"
+                        />
+                    </div>
+                    <div>
+                        <Label htmlFor="dateTo" className="text-white">To Date</Label>
+                        <Input
+                            id="dateTo"
+                            type="date"
+                            value={dateTo}
+                            onChange={(e) => setDateTo(e.target.value)}
+                            className="bg-gray-700 text-white border-gray-600"
+                        />
+                    </div>
+                    <div className="flex gap-2">
+                        <div className="flex-1">
+                            <Label htmlFor="priceMin" className="text-white">Min Price</Label>
+                            <Input
+                                id="priceMin"
+                                type="number"
+                                placeholder="Min Price"
+                                value={priceMin ?? ''}
+                                onChange={(e) => setPriceMin(e.target.value ? Number(e.target.value) : undefined)}
+                                className="bg-gray-700 text-white border-gray-600"
+                            />
+                        </div>
+                        <div className="flex-1">
+                            <Label htmlFor="priceMax" className="text-white">Max Price</Label>
+                            <Input
+                                id="priceMax"
+                                type="number"
+                                placeholder="Max Price"
+                                value={priceMax ?? ''}
+                                onChange={(e) => setPriceMax(e.target.value ? Number(e.target.value) : undefined)}
+                                className="bg-gray-700 text-white border-gray-600"
+                            />
+                        </div>
+                    </div>
+                </div>
+                <div className="mt-4">
+                    <Button type="submit" className="bg-blue-600 hover:bg-blue-700">
+                        Search Events
+                    </Button>
+                </div>
+            </form>
+        </div>
+    );
+}
 
 // Loading component shown during event data fetch
 function EventsLoading() {

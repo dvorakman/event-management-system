@@ -15,7 +15,7 @@ export const userRouter = createTRPCRouter({
     return ctx.dbUser;
   }),
 
-  // New procedure to get user's tickets/registrations
+  // New procedure to get user's tickets/registrations with personal information
   getMyTickets: protectedProcedure.query(async ({ ctx }) => {
     const userId = ctx.userId;
 
@@ -30,6 +30,12 @@ export const userRouter = createTRPCRouter({
         purchaseDate: registrations.createdAt,
         ticketNumber: tickets.ticketNumber,
         qrCodeUrl: tickets.qrCode,
+        totalAmount: registrations.totalAmount,
+        status: registrations.status,
+        // Personal information fields
+        dietaryRequirements: registrations.dietaryRequirements,
+        specialNeeds: registrations.specialNeeds,
+        emergencyContact: registrations.emergencyContact,
       })
       .from(registrations)
       .innerJoin(events, eq(registrations.eventId, events.id))

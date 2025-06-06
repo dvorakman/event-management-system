@@ -90,8 +90,9 @@ async function executePostgresMigrationsSql(dbUrl: string) {
             // 42P07 - relation already exists
             // 42P16 - constraint already exists
             // 42710 - object already exists (like indexes)
+            // 42701 - column already exists
             // 23505 - duplicate key value violates unique constraint
-            if (['42P07', '42P16', '42710', '23505'].includes(error.code)) {
+            if (['42P07', '42P16', '42710', '42701', '23505'].includes(error.code)) {
               console.log(`Object already exists, skipping statement ${i + 1}`);
             } else {
               console.error(`Error executing statement ${i + 1}:`, error);
@@ -196,8 +197,9 @@ async function executeNeonMigrationsSql(dbUrl: string) {
           // 42P07 - relation already exists
           // 42P16 - constraint already exists
           // 42710 - object already exists (like indexes)
+          // 42701 - column already exists
           // 23505 - duplicate key value violates unique constraint
-          if (['42P07', '42P16', '42710', '23505'].includes(error.code)) {
+          if (['42P07', '42P16', '42710', '42701', '23505'].includes(error.code)) {
             console.log(`Object already exists, skipping statement ${i + 1}`);
           } else {
             console.error(`Error executing statement ${i + 1}:`, error);

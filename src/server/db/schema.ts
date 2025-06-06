@@ -119,6 +119,10 @@ export const registrations = createTable(
       .default("pending")
       .notNull(),
     totalAmount: decimal("total_amount", { precision: 10, scale: 2 }).notNull(),
+    // Event-specific information (name and email will come from Stripe)
+    dietaryRequirements: text("dietary_requirements"),
+    specialNeeds: text("special_needs"),
+    emergencyContact: text("emergency_contact"),
     createdAt: timestamp("created_at", { withTimezone: true })
       .default(sql`CURRENT_TIMESTAMP`)
       .notNull(),
