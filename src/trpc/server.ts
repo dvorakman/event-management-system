@@ -21,7 +21,14 @@ const createContext = cache(async () => {
       headers: heads,
     });
   } catch (error) {
-    console.warn("[TRPC Server] Failed to get headers - requestAsyncStorage not available:", error);
+    // Check if this is the specific requestAsyncStorage error
+    const errorMessage = String(error);
+    if (errorMessage.includes("requestAsyncStorage") || errorMessage.includes("cookies()")) {
+      console.warn("[TRPC Server] RequestAsyncStorage not available - likely during sign out or SSR:", errorMessage);
+    } else {
+      console.warn("[TRPC Server] Failed to get headers:", error);
+    }
+    
     // Fallback to empty headers if requestAsyncStorage is not available
     const fallbackHeaders = new Headers();
     fallbackHeaders.set("x-trpc-source", "rsc");

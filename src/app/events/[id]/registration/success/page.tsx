@@ -21,23 +21,27 @@ function LoadingState() {
 }
 
 type Props = {
-  params: Promise<{ id: string }>;
-  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+  params: Promise<{ id: string }> | { id: string };
+  searchParams:
+    | Promise<{ [key: string]: string | string[] | undefined }>
+    | { [key: string]: string | string[] | undefined };
 };
 
 export default function RegistrationSuccessPage({
   params,
   searchParams,
 }: Props) {
-  // Unwrap the promises using React.use()
-  const resolvedParams = use(params);
-  const resolvedSearchParams = use(searchParams);
-  
+  // Safely unwrap the params and searchParams (they might or might not be promises)
+  const resolvedParams = params instanceof Promise ? use(params) : params;
+  const resolvedSearchParams =
+    searchParams instanceof Promise ? use(searchParams) : searchParams;
+
   // Extract session_id from search params
-  const sessionId = typeof resolvedSearchParams.session_id === 'string' 
-    ? resolvedSearchParams.session_id 
-    : null;
-  
+  const sessionId =
+    typeof resolvedSearchParams.session_id === "string"
+      ? resolvedSearchParams.session_id
+      : null;
+
   return (
     <Suspense fallback={<LoadingState />}>
       <SuccessPageContent eventId={resolvedParams.id} sessionId={sessionId} />
@@ -45,7 +49,13 @@ export default function RegistrationSuccessPage({
   );
 }
 
-function SuccessPageContent({ eventId, sessionId }: { eventId: string; sessionId: string | null }) {
+function SuccessPageContent({
+  eventId,
+  sessionId,
+}: {
+  eventId: string;
+  sessionId: string | null;
+}) {
   // Only render the component if there's a session ID
   if (!sessionId) {
     return (

@@ -36,7 +36,14 @@ async function checkDb() {
     } else {
       console.log(`Found ${eventTables.length} event tables:`);
       for (const table of eventTables) {
-        console.log(`- ${table.table_name}`);
+        try {
+          // Get row count for each table
+          const countResult = await sql`SELECT COUNT(*) as count FROM ${sql(table.table_name)}`;
+          const count = countResult[0]?.count || 0;
+          console.log(`- ${table.table_name}: ${count} rows`);
+        } catch (error) {
+          console.log(`- ${table.table_name}: error counting rows`);
+        }
       }
     }
     
@@ -60,6 +67,26 @@ async function checkDb() {
       }
     } catch (e) {
       console.log('\nNo drizzle schema found');
+    }
+    
+    // Check for any other tables that might be the newer schema
+    console.log('\nAll tables in public schema:');
+    const allTables = await sql`
+      SELECT table_name 
+      FROM information_schema.tables 
+      WHERE table_schema = 'public'
+      AND table_type = 'BASE TABLE'
+      ORDER BY table_name;
+    `;
+    
+    for (const table of allTables) {
+      try {
+        const countResult = await sql`SELECT COUNT(*) as count FROM ${sql(table.table_name)}`;
+        const count = countResult[0]?.count || 0;
+        console.log(`- ${table.table_name}: ${count} rows`);
+      } catch (error) {
+        console.log(`- ${table.table_name}: error counting rows`);
+      }
     }
     
     console.log('\nDatabase check completed successfully.');

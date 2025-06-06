@@ -44,7 +44,14 @@ export const createTRPCContext = async (opts: { headers: Headers }) => {
     session = await auth();
     userId = session.userId;
   } catch (error) {
-    console.warn("[TRPC Context] Failed to get auth session - requestAsyncStorage not available:", error);
+    // Check if this is the specific requestAsyncStorage error
+    const errorMessage = String(error);
+    if (errorMessage.includes("requestAsyncStorage") || errorMessage.includes("cookies()")) {
+      console.warn("[TRPC Context] RequestAsyncStorage not available - likely during sign out:", errorMessage);
+    } else {
+      console.warn("[TRPC Context] Failed to get auth session:", error);
+    }
+    
     // Return minimal context when auth fails
     return {
       db,

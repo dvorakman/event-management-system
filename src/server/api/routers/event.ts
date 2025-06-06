@@ -33,11 +33,12 @@ import { sendEmail } from "~/server/email/sendgrid";
 import { TRPCError } from "@trpc/server";
 import type { inferAsyncReturnType } from "@trpc/server";
 import { createTRPCContext } from "~/server/api/trpc";
+import { clerkClient } from "@clerk/nextjs/server";
 
 type Context = inferAsyncReturnType<typeof createTRPCContext>;
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY ?? "", {
-  apiVersion: "2025-04-30.basil",
+  apiVersion: "2023-10-16",
 });
 
 // Placeholder Event Type - Define what an event looks like
@@ -873,7 +874,50 @@ export const eventRouter = createTRPCRouter({
         });
       }
 
+      // Get user email from database
+      const dbUser = ctx.dbUser;
+      if (!dbUser) {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "User information not found",
+        });
+      }
+
+      // Create Stripe checkout session
+      const session = await stripe.checkout.sessions.create({
+        payment_method_types: ["card"],
+        mode: "payment",
+        line_items: [
+          {
+            price_data: {
+              currency: "usd",
+              product_data: {
+                name: `${event[0].name} - ${input.ticketType === "vip" ? "VIP" : "General"} Ticket`,
+                description: event[0].description || undefined,
+                metadata: {
+                  eventId: input.eventId,
+                  ticketType: input.ticketType,
+                  registrationId: registration.id.toString(),
+                },
+              },
+              unit_amount: Math.round(Number(price) * 100), // Convert to cents
+            },
+            quantity: 1,
+          },
+        ],
+        customer_email: dbUser.email,
+        metadata: {
+          eventId: input.eventId,
+          ticketType: input.ticketType,
+          registrationId: registration.id,
+          userId: userId,
+        },
+        success_url: `${process.env.NEXT_PUBLIC_APP_URL}/events/${input.eventId}/registration/success?session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/events/${input.eventId}`,
+      });
+
       return {
+        sessionId: session.id,
         registrationId: registration.id,
         amount: price,
       };
@@ -1252,7 +1296,38 @@ export const eventRouter = createTRPCRouter({
         });
       }
 
-      return event[0];
+      // Get registration statistics for this event
+      const allRegistrations = await ctx.db
+        .select({
+          status: registrations.status,
+          amount: registrations.totalAmount,
+        })
+        .from(registrations)
+        .where(eq(registrations.eventId, input.id));
+
+      // Calculate stats
+      const totalRegistrations = allRegistrations.length;
+      const confirmedRegistrations = allRegistrations.filter(
+        (reg) => reg.status === "confirmed"
+      ).length;
+      
+      let totalRevenue = 0;
+      for (const reg of allRegistrations) {
+        if (reg.status === "confirmed") {
+          totalRevenue += Number(reg.amount ?? 0);
+        } else if (reg.status === "refunded" || reg.status === "cancelled") {
+          totalRevenue -= Number(reg.amount ?? 0);
+        }
+      }
+
+      return {
+        ...event[0],
+        stats: {
+          totalRegistrations,
+          confirmedRegistrations,
+          totalRevenue,
+        },
+      };
     }),
 
   // Get registrations for a specific event
