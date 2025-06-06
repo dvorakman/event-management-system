@@ -36,18 +36,32 @@ export const createTRPCContext = async (opts: { headers: Headers }) => {
     authHeader: authHeader ? `${authHeader.substring(0, 15)}...` : null,
   });
 
-  // Get auth session using Clerk's auth() helper
-  const session = await auth();
-  const userId = session.userId;
+  // Get auth session using Clerk's auth() helper - wrap in try/catch for requestAsyncStorage issues
+  let session;
+  let userId = null;
+  
+  try {
+    session = await auth();
+    userId = session.userId;
+  } catch (error) {
+    console.warn("[TRPC Context] Failed to get auth session - requestAsyncStorage not available:", error);
+    // Return minimal context when auth fails
+    return {
+      db,
+      headers: opts.headers,
+      userRole: null,
+      onboardingComplete: false,
+    };
+  }
 
   console.log("[TRPC Context] Auth state:", {
     userId,
     hasHeaders: !!opts.headers,
-    sessionId: session.sessionId,
+    sessionId: session?.sessionId,
   });
 
   // Extract user info from JWT claims
-  const { sessionClaims } = session;
+  const sessionClaims = session?.sessionClaims;
   let role = null;
   let onboardingComplete = false;
   
@@ -90,8 +104,14 @@ export const createTRPCContext = async (opts: { headers: Headers }) => {
     if (!dbUser) {
       console.log("[TRPC Context] Creating minimal user entry for foreign key references");
       
-      // Get user info from Clerk to satisfy not-null constraints
-      const clerkUser = await currentUser();
+      // Try to get user info from Clerk - but handle the requestAsyncStorage error gracefully
+      let clerkUser = null;
+      try {
+        clerkUser = await currentUser();
+      } catch (asyncStorageError) {
+        console.warn("[TRPC Context] Failed to get currentUser - requestAsyncStorage not available:", asyncStorageError);
+        // Continue without clerk user data - we'll create a minimal user entry
+      }
       
       const [newUser] = await db.insert(users).values({
         id: userId,

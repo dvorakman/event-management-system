@@ -50,18 +50,16 @@ async function EventDetails({ id }: { id: string }) {
   return (
     <div className="min-h-screen bg-gray-900">
       <div className="container mx-auto px-4 py-8">
-        <div className="rounded-lg bg-gray-800 p-8 shadow-lg border border-gray-700">
+        <div className="rounded-lg border border-gray-700 bg-gray-800 p-8 shadow-lg">
           {/* Event Type Badge */}
           <div className="mb-4">
-            <span className="rounded-full bg-blue-100 px-3 py-1 text-sm font-medium text-blue-800 dark:bg-blue-900 dark:text-blue-200 capitalize">
-              {event.type.replace('_', ' ')}
+            <span className="rounded-full bg-blue-100 px-3 py-1 text-sm font-medium capitalize text-blue-800 dark:bg-blue-900 dark:text-blue-200">
+              {event.type.replace("_", " ")}
             </span>
           </div>
 
           {/* Event Title */}
-          <h1 className="mb-6 text-4xl font-bold text-white">
-            {event.name}
-          </h1>
+          <h1 className="mb-6 text-4xl font-bold text-white">{event.name}</h1>
 
           {/* Event Details Grid */}
           <div className="mb-8 grid grid-cols-1 gap-6 md:grid-cols-2">
@@ -79,7 +77,8 @@ async function EventDetails({ id }: { id: string }) {
                   {formatDate(event.endDate)}
                 </p>
                 <p className="text-gray-300">
-                  <span className="font-medium text-white">Location:</span> {event.location}
+                  <span className="font-medium text-white">Location:</span>{" "}
+                  {event.location}
                 </p>
                 <p className="text-gray-300">
                   <span className="font-medium text-white">Status:</span>{" "}
@@ -117,7 +116,9 @@ async function EventDetails({ id }: { id: string }) {
               </h2>
               <div className="space-y-4">
                 <div className="rounded-lg bg-gray-700 p-4">
-                  <h3 className="mb-2 font-semibold text-white">General Admission</h3>
+                  <h3 className="mb-2 font-semibold text-white">
+                    General Admission
+                  </h3>
                   <p className="text-2xl font-bold text-green-400">
                     ${Number(event.generalTicketPrice).toFixed(2)}
                   </p>
@@ -138,8 +139,10 @@ async function EventDetails({ id }: { id: string }) {
 
           {/* Event Description */}
           <div className="mb-8">
-            <h2 className="mb-4 text-xl font-semibold text-white">Description</h2>
-            <p className="text-gray-300 leading-relaxed">{event.description}</p>
+            <h2 className="mb-4 text-xl font-semibold text-white">
+              Description
+            </h2>
+            <p className="leading-relaxed text-gray-300">{event.description}</p>
           </div>
 
           {/* Action Buttons - Only show if event is published */}
@@ -163,25 +166,27 @@ async function EventDetails({ id }: { id: string }) {
 
           {/* Status-specific messages */}
           {event.status === "cancelled" && (
-            <div className="mt-6 rounded-lg bg-red-900 p-4 border border-red-700">
+            <div className="mt-6 rounded-lg border border-red-700 bg-red-900 p-4">
               <h3 className="font-semibold text-red-200">Event Cancelled</h3>
               <p className="text-red-300">
-                This event has been cancelled. Please contact the organiser for more information.
+                This event has been cancelled. Please contact the organiser for
+                more information.
               </p>
             </div>
           )}
 
           {event.status === "draft" && (
-            <div className="mt-6 rounded-lg bg-yellow-900 p-4 border border-yellow-700">
+            <div className="mt-6 rounded-lg border border-yellow-700 bg-yellow-900 p-4">
               <h3 className="font-semibold text-yellow-200">Event in Draft</h3>
               <p className="text-yellow-300">
-                This event is currently in draft mode and not yet available for registration.
+                This event is currently in draft mode and not yet available for
+                registration.
               </p>
             </div>
           )}
 
           {event.status === "completed" && (
-            <div className="mt-6 rounded-lg bg-gray-700 p-4 border border-gray-600">
+            <div className="mt-6 rounded-lg border border-gray-600 bg-gray-700 p-4">
               <h3 className="font-semibold text-gray-200">Event Completed</h3>
               <p className="text-gray-300">
                 This event has already taken place.
@@ -234,7 +239,7 @@ export async function generateMetadata({
 
   try {
     const event = await api.event.byId({ id: eventId });
-    
+
     return {
       title: event ? `${event.name} | Event Management` : "Event Not Found",
       description: event?.description ?? "Event details",

@@ -20,6 +20,18 @@ interface ThemeProviderProps {
 }
 
 export function ThemeProvider({ children, ...props }: ThemeProviderProps) {
+  const [mounted, setMounted] = React.useState(false);
+
+  // Only show the theme provider after mounting to prevent hydration mismatch
+  React.useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // During SSR and initial client render, render children without theme
+  if (!mounted) {
+    return <>{children}</>;
+  }
+
   return (
     <NextThemesProvider
       {...props}

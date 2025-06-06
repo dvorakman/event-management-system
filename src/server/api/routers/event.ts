@@ -11,6 +11,7 @@ import {
   sum,
   desc,
   sql,
+  inArray,
 } from "drizzle-orm";
 import {
   createTRPCRouter,
@@ -23,14 +24,20 @@ import {
   tickets,
   notifications,
   users,
+  type User,
 } from "~/server/db/schema";
 import { nanoid } from "nanoid";
 import Stripe from "stripe";
 import QRCode from "qrcode";
 import { sendEmail } from "~/server/email/sendgrid";
+import { TRPCError } from "@trpc/server";
+import type { inferAsyncReturnType } from "@trpc/server";
+import { createTRPCContext } from "~/server/api/trpc";
+
+type Context = inferAsyncReturnType<typeof createTRPCContext>;
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY ?? "", {
-  apiVersion: "2025-03-31.basil",
+  apiVersion: "2025-04-30.basil",
 });
 
 // Placeholder Event Type - Define what an event looks like
@@ -166,16 +173,17 @@ export const eventRouter = createTRPCRouter({
       z
         .object({
           limit: z.number().min(1).max(100).default(10),
-          cursor: z.number().optional(), // For pagination
+          cursor: z.string().optional(),
           type: z
             .enum(["conference", "music_concert", "networking"])
             .optional(),
           status: z
             .enum(["published", "draft", "cancelled", "completed"])
             .optional(),
-          search: z.string().optional(), // Search by name, description, or location
-          minPrice: z.number().optional(), // Minimum price filter
-          maxPrice: z.number().optional(), // Maximum price filter
+          search: z.string().optional(),
+          location: z.string().optional(),
+          minPrice: z.number().optional(),
+          maxPrice: z.number().optional(),
         })
         .optional(),
     )
@@ -195,16 +203,21 @@ export const eventRouter = createTRPCRouter({
         conditions.push(eq(events.status, "published"));
       }
 
-      // Apply search filter (case-insensitive search across multiple fields)
+      // Apply search filter (case-insensitive search across name and description)
       if (input?.search) {
         const searchTerm = `%${input.search}%`;
         conditions.push(
           or(
             like(events.name, searchTerm),
             like(events.description, searchTerm),
-            like(events.location, searchTerm),
           ),
         );
+      }
+
+      // Apply location filter
+      if (input?.location) {
+        const locationTerm = `%${input.location}%`;
+        conditions.push(like(events.location, locationTerm));
       }
 
       // Apply price range filters
@@ -234,7 +247,7 @@ export const eventRouter = createTRPCRouter({
         .limit(input?.limit ?? 10);
 
       // Get the next cursor
-      let nextCursor: number | undefined = undefined;
+      let nextCursor: string | undefined = undefined;
       if (items.length > 0) {
         const lastItem = items[items.length - 1];
         if (lastItem) {
@@ -428,7 +441,7 @@ export const eventRouter = createTRPCRouter({
       const result = await ctx.db
         .select()
         .from(events)
-        .where(eq(events.id, input.id))
+        .where(eq(events.id, input.id.toString()))
         .limit(1);
 
       if (!result[0]) return null;
@@ -448,44 +461,23 @@ export const eventRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
+      const userId = ctx.userId;
+      if (!userId) {
+        throw new TRPCError({
+          code: "UNAUTHORIZED",
+          message: "You must be logged in to verify payment",
+        });
+      }
+
       try {
-        console.log(
-          "Starting payment verification for session:",
-          input.sessionId,
-          "and event:",
-          input.eventId,
-        );
-
-        // Get the authenticated user's ID
-        const userId = ctx.userId;
-        console.log("Authenticated user ID:", userId);
-
-        // Verify the payment session
-        const session = await stripe.checkout.sessions
-          .retrieve(input.sessionId, {
-            expand: ["customer"],
-          })
-          .catch((error) => {
-            console.error("Stripe session retrieval error:", error);
-            if (error instanceof Error) {
-              throw new Error(
-                `Failed to retrieve Stripe session: ${error.message}`,
-              );
-            }
-            throw new Error(
-              "Failed to retrieve Stripe session due to an unknown error.",
-            );
-          });
+        // Retrieve the checkout session from Stripe
+        const session = await stripe.checkout.sessions.retrieve(input.sessionId);
 
         console.log("Retrieved Stripe session:", {
-          id: session.id,
+          sessionId: session.id,
           paymentStatus: session.payment_status,
-          customerId:
-            typeof session.customer === "string"
-              ? session.customer
-              : session.customer?.id,
           metadata: session.metadata,
-          amountTotal: session.amount_total,
+          total: session.amount_total,
         });
 
         if (session.payment_status !== "paid") {
@@ -728,6 +720,35 @@ export const eventRouter = createTRPCRouter({
         }
         throw new Error("Failed to verify payment and create ticket");
       }
+
+      const registration = await ctx.db
+        .select()
+        .from(registrations)
+        .where(
+          and(
+            eq(registrations.userId, userId),
+            eq(registrations.eventId, input.eventId),
+          ),
+        )
+        .limit(1);
+
+      if (!registration[0]) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Registration not found",
+        });
+      }
+
+      // Update registration status
+      await ctx.db
+        .update(registrations)
+        .set({
+          status: "confirmed",
+          paymentStatus: "completed",
+        })
+        .where(eq(registrations.id, registration[0].id));
+
+      return { success: true };
     }),
 
   createPaymentSession: protectedProcedure
@@ -743,18 +764,32 @@ export const eventRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      // Get event details
-      const event = await ctx.db.query.events.findFirst({
-        where: eq(events.id, input.eventId),
-      });
-
-      if (!event) {
-        throw new Error("Event not found");
+      const userId = ctx.userId;
+      if (!userId) {
+        throw new TRPCError({
+          code: "UNAUTHORIZED",
+          message: "You must be logged in to create a payment session",
+        });
       }
 
-      // Check if event is published
-      if (event.status !== "published") {
-        throw new Error("Event is not available for registration");
+      const event = await ctx.db
+        .select()
+        .from(events)
+        .where(eq(events.id, input.eventId))
+        .limit(1);
+
+      if (!event[0]) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Event not found",
+        });
+      }
+
+      if (event[0].status !== "published") {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "You can only register for published events.",
+        });
       }
 
       // Check if user is already registered for this event
@@ -777,9 +812,10 @@ export const eventRouter = createTRPCRouter({
 
       if (existingRegistration.length > 0) {
         const reg = existingRegistration[0]!;
-        throw new Error(
-          `You already have a ${reg.status} registration for this event. Please check your dashboard or contact support if you need assistance.`
-        );
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: `You already have a ${reg.status} registration for this event. Please check your dashboard or contact support if you need assistance.`,
+        });
       }
 
       // Check current registration count to prevent overselling
@@ -795,47 +831,27 @@ export const eventRouter = createTRPCRouter({
 
       const currentCount = currentRegistrations[0]?.count ?? 0;
 
-      if (currentCount >= event.maxAttendees) {
-        throw new Error("Event is sold out");
+      if (currentCount >= event[0].maxAttendees) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Event is sold out",
+        });
       }
 
       // Calculate price based on ticket type
       const price =
-        input.ticketType === "general"
-          ? event.generalTicketPrice
-          : event.vipTicketPrice;
+        input.ticketType === "vip"
+          ? event[0].vipTicketPrice
+          : event[0].generalTicketPrice;
 
-      // Create a temporary customer
-      const customer = await stripe.customers.create({
-        description: `Temporary customer for event ${event.id}`,
-      });
-
-      // Create Stripe Checkout Session
-      const session = await stripe.checkout.sessions.create({
-        customer: customer.id, // Associate the customer with the session
-        payment_method_types: ["card"],
-        line_items: [
-          {
-            price_data: {
-              currency: "usd",
-              product_data: {
-                name: `${input.ticketType === "vip" ? "VIP" : "General"} Ticket - ${event.name}`,
-                description:
-                  input.ticketType === "vip"
-                    ? `VIP Ticket includes: ${event.vipPerks}`
-                    : "General Admission",
-              },
-              unit_amount: Number(price) * 100, // Convert to cents
-            },
-            quantity: 1,
-          },
-        ],
-        mode: "payment",
-        success_url: `${process.env.NEXT_PUBLIC_APP_URL}/events/${event.id}/registration/success?session_id={CHECKOUT_SESSION_ID}`,
-        cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/events/${event.id}`,
-        metadata: {
-          eventId: event.id.toString(),
+      // Create registration
+      const [registration] = await ctx.db
+        .insert(registrations)
+        .values({
+          userId,
+          eventId: input.eventId,
           ticketType: input.ticketType,
+          totalAmount: price,
           ...(input.eventSpecificData && {
             ...(input.eventSpecificData.dietaryRequirements && {
               dietaryRequirements: input.eventSpecificData.dietaryRequirements,
@@ -847,43 +863,103 @@ export const eventRouter = createTRPCRouter({
               emergencyContact: input.eventSpecificData.emergencyContact,
             }),
           }),
-        },
-      });
+        })
+        .returning();
 
-      return { sessionId: session.id };
+      if (!registration) {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Failed to create registration",
+        });
+      }
+
+      return {
+        registrationId: registration.id,
+        amount: price,
+      };
     }),
 
   // Get organizer statistics
   getOrganizerStats: protectedProcedure.query(async ({ ctx }) => {
     const userId = ctx.userId;
+    if (!userId) {
+      throw new TRPCError({
+        code: "UNAUTHORIZED",
+        message: "You must be logged in to view organizer stats",
+      });
+    }
 
-    // Get total events
-    const eventsResult = await ctx.db
-      .select({ count: count() })
+    // 1. Get all events for this organizer
+    const allEvents = await ctx.db
+      .select({ id: events.id, status: events.status })
       .from(events)
       .where(eq(events.organizerId, userId));
+    const allEventIds = allEvents.map(e => e.id);
+    const publishedEventIds = allEvents.filter(e => e.status === "published").map(e => e.id);
 
-    const totalEvents = eventsResult[0]?.count ?? 0;
+    // 2. totalEvents: count all events (any status)
+    const totalEvents = allEvents.length;
 
-    // Get total registrations and revenue
-    const registrationsResult = await ctx.db
+    // 3. publishedEvents: count only published events
+    const publishedEvents = publishedEventIds.length;
+
+    // 4. totalRegistrations: count all registrations (any status) for all events (any status)
+    const totalRegistrationsResult = await ctx.db
+      .select({ count: count() })
+      .from(registrations)
+      .where(inArray(registrations.eventId, allEventIds));
+    const totalRegistrations = totalRegistrationsResult[0]?.count ?? 0;
+
+    // 5. Get all registrations for published events (any status)
+    const publishedRegistrations = await ctx.db
       .select({
-        count: count(),
-        revenue: sum(registrations.totalAmount),
+        status: registrations.status,
+        amount: registrations.totalAmount,
+        createdAt: registrations.createdAt,
+        ticketType: registrations.ticketType,
       })
       .from(registrations)
-      .innerJoin(events, eq(registrations.eventId, events.id))
-      .where(
-        and(
-          eq(events.organizerId, userId),
-          eq(registrations.status, "confirmed"),
-        ),
-      );
+      .where(inArray(registrations.eventId, publishedEventIds));
 
-    const totalRegistrations = registrationsResult[0]?.count ?? 0;
-    const totalRevenue = Number(registrationsResult[0]?.revenue ?? 0);
+    // 6. totalRevenue: sum confirmed - refunded/cancelled for published events
+    let totalRevenue = 0;
+    for (const reg of publishedRegistrations) {
+      if (reg.status === "confirmed") {
+        totalRevenue += Number(reg.amount ?? 0);
+      } else if (reg.status === "refunded" || reg.status === "cancelled") {
+        totalRevenue -= Number(reg.amount ?? 0);
+      }
+    }
 
-    // Get recent registrations
+    // 7. monthlyRevenue: for published events, per month, sum (confirmed - refunded/cancelled)
+    const now = new Date();
+    const months: { month: string; year: number }[] = [];
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      months.push({ month: d.toLocaleString("default", { month: "short" }), year: d.getFullYear() });
+    }
+    const monthlyRevenue = months.map(({ month, year }) => {
+      let sum = 0;
+      for (const reg of publishedRegistrations) {
+        const d = new Date(reg.createdAt);
+        if (d.getFullYear() === year && d.toLocaleString("default", { month: "short" }) === month) {
+          if (reg.status === "confirmed") {
+            sum += Number(reg.amount ?? 0);
+          } else if (reg.status === "refunded" || reg.status === "cancelled") {
+            sum -= Number(reg.amount ?? 0);
+          }
+        }
+      }
+      return { month: `${month} ${year}`, revenue: sum };
+    });
+
+    // 8. ticketDistribution: for published events, count confirmed tickets by type
+    const ticketDistribution = {
+      general: publishedRegistrations.filter(r => r.status === "confirmed" && r.ticketType === "general").length,
+      vip: publishedRegistrations.filter(r => r.status === "confirmed" && r.ticketType === "vip").length,
+    };
+
+    // 9. recentRegistrations: for published events, confirmed only
     const recentRegistrations = await ctx.db
       .select({
         id: registrations.id,
@@ -893,16 +969,25 @@ export const eventRouter = createTRPCRouter({
         date: registrations.createdAt,
       })
       .from(registrations)
-      .innerJoin(events, eq(registrations.eventId, events.id))
-      .where(eq(events.organizerId, userId))
+      .leftJoin(events, eq(registrations.eventId, events.id))
+      .where(
+        and(
+          eq(registrations.status, "confirmed"),
+          eq(events.organizerId, userId),
+          eq(events.status, "published"),
+        ),
+      )
       .orderBy(desc(registrations.createdAt))
       .limit(5);
 
     return {
       totalEvents,
+      publishedEvents,
       totalRegistrations,
       totalRevenue,
       recentRegistrations,
+      monthlyRevenue,
+      ticketDistribution,
     };
   }),
 
@@ -980,10 +1065,8 @@ export const eventRouter = createTRPCRouter({
         location: z.string().min(3).max(100),
         type: z.enum([
           "conference",
-          "concert",
-          "workshop",
+          "music_concert",
           "networking",
-          "other",
         ]),
         generalTicketPrice: z.number().min(0),
         vipTicketPrice: z.number().min(0),
@@ -997,8 +1080,8 @@ export const eventRouter = createTRPCRouter({
 
       // Ensure user is an organizer
       if (
-        (ctx.dbUser as any)?.role !== "organizer" &&
-        (ctx.dbUser as any)?.role !== "admin"
+        ctx.userRole !== "organizer" &&
+        ctx.userRole !== "admin"
       ) {
         throw new Error("Only organizers can create events");
       }
@@ -1018,8 +1101,8 @@ export const eventRouter = createTRPCRouter({
           endDate: input.endDate,
           location: input.location,
           type: input.type,
-          generalTicketPrice: input.generalTicketPrice,
-          vipTicketPrice: input.vipTicketPrice,
+          generalTicketPrice: input.generalTicketPrice.toString(),
+          vipTicketPrice: input.vipTicketPrice.toString(),
           vipPerks: input.vipPerks,
           maxAttendees: input.maxAttendees,
           organizerId: userId,
@@ -1043,10 +1126,10 @@ export const eventRouter = createTRPCRouter({
         endDate: z.date().optional(),
         location: z.string().min(3).max(100).optional(),
         type: z
-          .enum(["conference", "concert", "workshop", "networking", "other"])
+          .enum(["conference", "music_concert", "networking"])
           .optional(),
-        generalTicketPrice: z.number().min(0).optional(),
-        vipTicketPrice: z.number().min(0).optional(),
+        generalTicketPrice: z.union([z.string(), z.number()]).optional(),
+        vipTicketPrice: z.union([z.string(), z.number()]).optional(),
         vipPerks: z.string().optional(),
         maxAttendees: z.number().min(1).optional(),
         status: z
@@ -1056,56 +1139,48 @@ export const eventRouter = createTRPCRouter({
     )
     .mutation(async ({ ctx, input }) => {
       const userId = ctx.userId;
-
-      // Get the event
-      const event = await ctx.db.query.events.findFirst({
-        where: eq(events.id, input.id),
-      });
-
-      if (!event) {
-        throw new Error("Event not found");
+      if (!userId) {
+        throw new TRPCError({
+          code: "UNAUTHORIZED",
+          message: "You must be logged in to update an event",
+        });
       }
 
-      // Ensure user is the organizer of this event
-      if (event.organizerId !== userId && ctx.dbUser.role !== "admin") {
-        throw new Error("You do not have permission to update this event");
-      }
-
-      // Validate dates if both are provided
-      if (input.startDate && input.endDate && input.endDate < input.startDate) {
-        throw new Error("End date cannot be before start date");
-      }
-
-      // If status is changing to cancelled, handle cancellation
-      if (input.status === "cancelled" && event.status !== "cancelled") {
-        await handleEventCancellation(ctx, event.id);
-      }
-
-      // Update the event
-      const [updatedEvent] = await ctx.db
-        .update(events)
-        .set({
-          ...(input.name && { name: input.name }),
-          ...(input.description && { description: input.description }),
-          ...(input.startDate && { startDate: input.startDate }),
-          ...(input.endDate && { endDate: input.endDate }),
-          ...(input.location && { location: input.location }),
-          ...(input.type && { type: input.type }),
-          ...(input.generalTicketPrice !== undefined && {
-            generalTicketPrice: input.generalTicketPrice,
-          }),
-          ...(input.vipTicketPrice !== undefined && {
-            vipTicketPrice: input.vipTicketPrice,
-          }),
-          ...(input.vipPerks && { vipPerks: input.vipPerks }),
-          ...(input.maxAttendees && { maxAttendees: input.maxAttendees }),
-          ...(input.status && { status: input.status }),
-          updatedAt: new Date(),
-        })
+      const event = await ctx.db
+        .select()
+        .from(events)
         .where(eq(events.id, input.id))
-        .returning();
+        .limit(1);
 
-      return updatedEvent;
+      if (!event[0]) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Event not found",
+        });
+      }
+
+      if (event[0].organizerId !== userId) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "You can only update your own events",
+        });
+      }
+
+      const { id, generalTicketPrice, vipTicketPrice, ...rest } = input;
+      const updateData: Record<string, unknown> = { ...rest };
+      if (generalTicketPrice !== undefined) {
+        updateData.generalTicketPrice = generalTicketPrice.toString();
+      }
+      if (vipTicketPrice !== undefined) {
+        updateData.vipTicketPrice = vipTicketPrice.toString();
+      }
+
+      await ctx.db
+        .update(events)
+        .set(updateData)
+        .where(eq(events.id, id));
+
+      return { success: true };
     }),
 
   // Delete an event
@@ -1113,25 +1188,33 @@ export const eventRouter = createTRPCRouter({
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const userId = ctx.userId;
-
-      // Get the event
-      const event = await ctx.db.query.events.findFirst({
-        where: eq(events.id, input.id),
-      });
-
-      if (!event) {
-        throw new Error("Event not found");
+      if (!userId) {
+        throw new TRPCError({
+          code: "UNAUTHORIZED",
+          message: "You must be logged in to delete an event",
+        });
       }
 
-      // Ensure user is the organizer of this event
-      if (event.organizerId !== userId && ctx.dbUser.role !== "admin") {
-        throw new Error("You do not have permission to delete this event");
+      const event = await ctx.db
+        .select()
+        .from(events)
+        .where(eq(events.id, input.id))
+        .limit(1);
+
+      if (!event[0]) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Event not found",
+        });
       }
 
-      // Cancel the event before deletion
-      await handleEventCancellation(ctx, event.id);
+      if (event[0].organizerId !== userId) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "You can only delete your own events",
+        });
+      }
 
-      // Delete the event
       await ctx.db.delete(events).where(eq(events.id, input.id));
 
       return { success: true };
@@ -1142,46 +1225,34 @@ export const eventRouter = createTRPCRouter({
     .input(z.object({ id: z.string() }))
     .query(async ({ ctx, input }) => {
       const userId = ctx.userId;
-
-      // Get event details
-      const event = await ctx.db.query.events.findFirst({
-        where: eq(events.id, input.id),
-      });
-
-      if (!event) {
-        throw new Error("Event not found");
+      if (!userId) {
+        throw new TRPCError({
+          code: "UNAUTHORIZED",
+          message: "You must be logged in to view event details",
+        });
       }
 
-      // Check permissions
-      if (event.organizerId !== userId && ctx.dbUser.role !== "admin") {
-        throw new Error(
-          "You do not have permission to view this event's details",
-        );
+      const event = await ctx.db
+        .select()
+        .from(events)
+        .where(eq(events.id, input.id))
+        .limit(1);
+
+      if (!event[0]) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Event not found",
+        });
       }
 
-      // Get registration statistics
-      const stats = await ctx.db
-        .select({
-          totalRegistrations: count(),
-          confirmedRegistrations: count(
-            and(
-              eq(registrations.status, "confirmed"),
-              eq(registrations.eventId, input.id),
-            ),
-          ),
-          totalRevenue: sum(registrations.totalAmount),
-        })
-        .from(registrations)
-        .where(eq(registrations.eventId, input.id));
+      if (event[0].organizerId !== userId) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "You can only view details of your own events",
+        });
+      }
 
-      return {
-        ...event,
-        stats: {
-          totalRegistrations: stats[0]?.totalRegistrations ?? 0,
-          confirmedRegistrations: stats[0]?.confirmedRegistrations ?? 0,
-          totalRevenue: stats[0]?.totalRevenue ?? 0,
-        },
-      };
+      return event[0];
     }),
 
   // Get registrations for a specific event
@@ -1196,50 +1267,51 @@ export const eventRouter = createTRPCRouter({
     )
     .query(async ({ ctx, input }) => {
       const userId = ctx.userId;
-
-      // Get the event
-      const event = await ctx.db.query.events.findFirst({
-        where: eq(events.id, input.eventId),
-      });
-
-      if (!event) {
-        throw new Error("Event not found");
+      if (!userId) {
+        throw new TRPCError({
+          code: "UNAUTHORIZED",
+          message: "You must be logged in to view registrations",
+        });
       }
 
-      // Ensure user is the organizer of this event
-      if (event.organizerId !== userId && ctx.dbUser.role !== "admin") {
-        throw new Error(
-          "You do not have permission to view registrations for this event",
-        );
+      const event = await ctx.db
+        .select()
+        .from(events)
+        .where(eq(events.id, input.eventId))
+        .limit(1);
+
+      if (!event[0]) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Event not found",
+        });
       }
 
-      // Build query conditions
-      const conditions = [eq(registrations.eventId, input.eventId)];
-
-      if (input.status !== "all") {
-        conditions.push(eq(registrations.status, input.status));
+      if (event[0].organizerId !== userId) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "You can only view registrations for your own events",
+        });
       }
 
-      // Get registrations
-      const eventRegistrations = await ctx.db
+      const whereClause = and(
+        eq(registrations.eventId, input.eventId),
+        input.status !== "all"
+          ? eq(registrations.status, input.status)
+          : undefined,
+      );
+
+      const result = await ctx.db
         .select({
-          id: registrations.id,
-          userId: registrations.userId,
-          userName: users.name,
-          userEmail: users.email,
-          ticketType: registrations.ticketType,
-          status: registrations.status,
-          paymentStatus: registrations.paymentStatus,
-          totalAmount: registrations.totalAmount,
-          createdAt: registrations.createdAt,
-          hasTicket: sql`EXISTS (SELECT 1 FROM ${tickets} WHERE ${tickets.registrationId} = ${registrations.id})`,
+          registration: registrations,
+          user: users,
         })
         .from(registrations)
-        .innerJoin(users, eq(registrations.userId, users.id))
-        .where(and(...conditions))
-        .orderBy(desc(registrations.createdAt));
+        .leftJoin(users, eq(registrations.userId, users.id))
+        .where(whereClause)
+        .orderBy(registrations.createdAt);
 
-      return eventRegistrations;
+      return result;
     }),
 
   // Update registration status
@@ -1253,13 +1325,26 @@ export const eventRouter = createTRPCRouter({
     .mutation(async ({ ctx, input }) => {
       const userId = ctx.userId;
 
-      // Get the registration
-      const registration = await ctx.db.query.registrations.findFirst({
-        where: eq(registrations.id, input.registrationId),
-        with: {
-          event: true,
-        },
-      });
+      // Use a select with join to get registration and event
+      const registrationResult = await ctx.db
+        .select({
+          id: registrations.id,
+          userId: registrations.userId,
+          eventId: registrations.eventId,
+          ticketType: registrations.ticketType,
+          status: registrations.status,
+          paymentStatus: registrations.paymentStatus,
+          totalAmount: registrations.totalAmount,
+          createdAt: registrations.createdAt,
+          updatedAt: registrations.updatedAt,
+          eventOrganizerId: events.organizerId,
+          eventName: events.name,
+        })
+        .from(registrations)
+        .leftJoin(events, eq(registrations.eventId, events.id))
+        .where(eq(registrations.id, input.registrationId))
+        .limit(1);
+      const registration = registrationResult[0];
 
       if (!registration) {
         throw new Error("Registration not found");
@@ -1267,8 +1352,8 @@ export const eventRouter = createTRPCRouter({
 
       // Ensure user is the organizer of this event
       if (
-        registration.event.organizerId !== userId &&
-        ctx.dbUser.role !== "admin"
+        registration.eventOrganizerId !== userId &&
+        ctx.userRole !== "admin"
       ) {
         throw new Error(
           "You do not have permission to update this registration",
@@ -1288,8 +1373,8 @@ export const eventRouter = createTRPCRouter({
       // Create notification for the user
       await ctx.db.insert(notifications).values({
         userId: registration.userId,
-        title: `Registration ${input.status} for ${registration.event.name}`,
-        message: `Your registration for ${registration.event.name} has been ${input.status}.`,
+        title: `Registration ${input.status} for ${registration.eventName}`,
+        message: `Your registration for ${registration.eventName} has been ${input.status}.`,
         type: "registration",
         isRead: false,
         eventId: registration.eventId,
@@ -1305,14 +1390,33 @@ export const eventRouter = createTRPCRouter({
     .query(async ({ ctx, input }) => {
       const userId = ctx.userId;
 
-      // Get the registration with ticket
-      const registration = await ctx.db.query.registrations.findFirst({
-        where: eq(registrations.id, input.registrationId),
-        with: {
-          event: true,
-          ticket: true,
-        },
-      });
+      // Get the registration with ticket and event
+      const registrationResult = await ctx.db
+        .select({
+          id: registrations.id,
+          userId: registrations.userId,
+          eventId: registrations.eventId,
+          ticketType: registrations.ticketType,
+          status: registrations.status,
+          paymentStatus: registrations.paymentStatus,
+          totalAmount: registrations.totalAmount,
+          createdAt: registrations.createdAt,
+          updatedAt: registrations.updatedAt,
+          eventOrganizerId: events.organizerId,
+          eventName: events.name,
+          eventStartDate: events.startDate,
+          eventLocation: events.location,
+          ticketId: tickets.id,
+          ticketNumber: tickets.ticketNumber,
+          ticketQrCode: tickets.qrCode,
+          ticketIsUsed: tickets.isUsed,
+        })
+        .from(registrations)
+        .leftJoin(events, eq(registrations.eventId, events.id))
+        .leftJoin(tickets, eq(tickets.registrationId, registrations.id))
+        .where(eq(registrations.id, input.registrationId))
+        .limit(1);
+      const registration = registrationResult[0];
 
       if (!registration) {
         throw new Error("Registration not found");
@@ -1320,16 +1424,19 @@ export const eventRouter = createTRPCRouter({
 
       // Ensure user is the organizer of this event
       if (
-        registration.event.organizerId !== userId &&
-        ctx.dbUser.role !== "admin"
+        registration.eventOrganizerId !== userId &&
+        ctx.userRole !== "admin"
       ) {
         throw new Error("You do not have permission to view this registration");
       }
 
       // Get user details
-      const user = await ctx.db.query.users.findFirst({
-        where: eq(users.id, registration.userId),
-      });
+      const userResult = await ctx.db
+        .select()
+        .from(users)
+        .where(eq(users.id, registration.userId))
+        .limit(1);
+      const user = userResult[0];
 
       if (!user) {
         throw new Error("User not found");
@@ -1340,22 +1447,22 @@ export const eventRouter = createTRPCRouter({
         userId: registration.userId,
         userName: user.name,
         userEmail: user.email,
-        eventId: registration.event.id,
-        eventName: registration.event.name,
-        eventDate: registration.event.startDate,
-        eventLocation: registration.event.location,
+        eventId: registration.eventId,
+        eventName: registration.eventName,
+        eventDate: registration.eventStartDate,
+        eventLocation: registration.eventLocation,
         ticketType: registration.ticketType,
         status: registration.status,
         paymentStatus: registration.paymentStatus,
         totalAmount: registration.totalAmount,
         createdAt: registration.createdAt,
         updatedAt: registration.updatedAt,
-                  ticket: registration.ticket
+        ticket: registration.ticketId
           ? {
-              id: registration.ticket.id,
-              ticketNumber: registration.ticket.ticketNumber,
-              qrCode: registration.ticket.qrCode,
-              isUsed: registration.ticket.isUsed,
+              id: registration.ticketId,
+              ticketNumber: registration.ticketNumber,
+              qrCode: registration.ticketQrCode,
+              isUsed: registration.ticketIsUsed,
             }
           : null,
       };
@@ -1363,7 +1470,7 @@ export const eventRouter = createTRPCRouter({
 });
 
 // Helper function to handle event cancellation
-async function handleEventCancellation(ctx: any, eventId: string) {
+async function handleEventCancellation(ctx: Context, eventId: string) {
   // Get all confirmed registrations for this event
   const registrationsToCancel = await ctx.db
     .select()
@@ -1391,16 +1498,19 @@ async function handleEventCancellation(ctx: any, eventId: string) {
       );
 
     // Get event details
-    const event = await ctx.db.query.events.findFirst({
-      where: eq(events.id, eventId),
-    });
+    const eventResult = await ctx.db
+      .select()
+      .from(events)
+      .where(eq(events.id, eventId))
+      .limit(1);
+    const event = eventResult[0];
 
     // Create notifications for all affected users
-    const notificationsToInsert = registrationsToCancel.map((reg: any) => ({
+    const notificationsToInsert = registrationsToCancel.map((reg) => ({
       userId: reg.userId,
       title: `Event Cancelled: ${event?.name}`,
       message: `We're sorry, but the event "${event?.name}" has been cancelled. If you made a payment, a refund will be processed.`,
-      type: "cancellation",
+      type: "cancellation" as const,
       isRead: false,
       eventId,
       createdAt: new Date(),

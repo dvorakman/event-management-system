@@ -3,8 +3,8 @@
   "compilerOptions": {
     /* Override options for scripts */
     "noEmit": true,
-    "module": "NodeNext",
-    "moduleResolution": "NodeNext",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
     "allowSyntheticDefaultImports": true,
     /* Allow 'any' types in these utility scripts */
     "noImplicitAny": false
