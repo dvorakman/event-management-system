@@ -83,9 +83,6 @@ export default function Home() {
                 Discover and Create
                 <span className="block text-primary">Unforgettable Events</span>
               </h1>
-              <div className="css-test-marker">
-                CSS Test: If you see a red background with green border, CSS is working!
-              </div>
               <p className="mx-auto max-w-2xl text-xl text-muted-foreground md:mx-0">
                 Join our platform to discover amazing events or create your own.
                 Connect with people who share your interests.
