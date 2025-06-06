@@ -2,6 +2,14 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Test CSS to verify styles are loading */
+.css-test-marker {
+  background: #ff0000 !important;
+  color: #ffffff !important;
+  padding: 10px !important;
+  border: 3px solid #00ff00 !important;
+}
+
 @layer base {
   :root {
     --background: 0 0% 100%; /* #ffffff White Background */
