@@ -13,12 +13,23 @@ import { createQueryClient } from "./query-client";
  * handling a tRPC call from a React Server Component.
  */
 const createContext = cache(async () => {
-  const heads = new Headers(await headers());
-  heads.set("x-trpc-source", "rsc");
+  try {
+    const heads = new Headers(await headers());
+    heads.set("x-trpc-source", "rsc");
 
-  return createTRPCContext({
-    headers: heads,
-  });
+    return createTRPCContext({
+      headers: heads,
+    });
+  } catch (error) {
+    console.warn("[TRPC Server] Failed to get headers - requestAsyncStorage not available:", error);
+    // Fallback to empty headers if requestAsyncStorage is not available
+    const fallbackHeaders = new Headers();
+    fallbackHeaders.set("x-trpc-source", "rsc");
+    
+    return createTRPCContext({
+      headers: fallbackHeaders,
+    });
+  }
 });
 
 const getQueryClient = cache(createQueryClient);

@@ -4,7 +4,7 @@ WORKDIR /app
 
 # Stage 2: Install dependencies
 FROM base AS deps
-COPY package.json bun.lock ./
+COPY package.json bun.lockb ./
 RUN bun install --frozen-lockfile
 
 # Stage 3: Development stage (target for docker-compose)
